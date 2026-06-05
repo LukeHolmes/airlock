@@ -16,7 +16,7 @@ export {
   createFileContainer,
   createUrlContainer,
   type AirlockContainerConfig,
-} from "./ContainerManager.js";
+} from './ContainerManager.js';
 
 export {
   AIRLOCK_SECCOMP_PROFILE,
@@ -25,4 +25,4 @@ export {
   type SeccompRule,
   type SeccompArch,
   type SeccompArg,
-} from "./seccomp.js";
+} from './seccomp.js';

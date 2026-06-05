@@ -4,4 +4,4 @@
  * Node.js + dockerode lifecycle management for Airlock.
  */
 
-export * as docker from "./docker/index.js";
+export * as docker from './docker/index.js';

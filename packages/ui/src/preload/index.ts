@@ -5,7 +5,7 @@
  * All container operations are proxied to the main process.
  */
 
-import { contextBridge, ipcRenderer } from "electron";
+import { contextBridge, ipcRenderer } from 'electron';
 import {
   IPC_CHANNELS,
   type AirlockIpcApi,
@@ -16,19 +16,15 @@ import {
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
-} from "../shared/ipc.js";
+} from '../shared/ipc.js';
 
 // Container lifecycle handlers
 
-async function createFileContainer(
-  request: CreateFileContainerRequest,
-): Promise<ContainerSession> {
+async function createFileContainer(request: CreateFileContainerRequest): Promise<ContainerSession> {
   return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_CREATE, request);
 }
 
-async function createUrlContainer(
-  request: CreateUrlContainerRequest,
-): Promise<ContainerSession> {
+async function createUrlContainer(request: CreateUrlContainerRequest): Promise<ContainerSession> {
   return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_CREATE_URL, request);
 }
 
@@ -50,9 +46,7 @@ async function getContainerStatus(sessionId: string): Promise<ContainerStatus> {
 
 // Session event subscribers
 
-function onSessionStarted(
-  callback: (event: SessionStartedEvent) => void,
-): () => void {
+function onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, data: SessionStartedEvent) => {
     callback(data);
   };
@@ -62,9 +56,7 @@ function onSessionStarted(
   };
 }
 
-function onSessionEnded(
-  callback: (event: SessionEndedEvent) => void,
-): () => void {
+function onSessionEnded(callback: (event: SessionEndedEvent) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, data: SessionEndedEvent) => {
     callback(data);
   };
@@ -74,9 +66,7 @@ function onSessionEnded(
   };
 }
 
-function onSessionError(
-  callback: (event: SessionErrorEvent) => void,
-): () => void {
+function onSessionError(callback: (event: SessionErrorEvent) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, data: SessionErrorEvent) => {
     callback(data);
   };
@@ -112,6 +102,6 @@ const airlockApi: AirlockIpcApi = {
   getVersion,
 };
 
-contextBridge.exposeInMainWorld("airlock", airlockApi);
+contextBridge.exposeInMainWorld('airlock', airlockApi);
 
-console.log("[preload] Airlock IPC API exposed");
+console.log('[preload] Airlock IPC API exposed');

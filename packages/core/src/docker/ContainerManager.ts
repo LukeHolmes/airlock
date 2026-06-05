@@ -12,16 +12,14 @@
  * in the session registry are synchronously force-killed.
  */
 
-import type Dockerode from "dockerode";
-import { serializeSeccompProfile } from "./seccomp.js";
+import Dockerode from 'dockerode';
+import { serializeSeccompProfile } from './seccomp.js';
 
 // Lazily loaded dockerode to avoid side effects at module load time
 let dockerClient: Dockerode | undefined;
 
 function getDocker(): Dockerode {
   if (!dockerClient) {
-    // Dynamic import to avoid top-level side effects
-    const { default: Dockerode } = require("dockerode") as typeof import("dockerode");
     dockerClient = new Dockerode();
   }
   return dockerClient;
@@ -119,8 +117,8 @@ export function installCrashTrap(): void {
   crashTrapInstalled = true;
 
   // Uncaught exception handler — attempt graceful-ish cleanup
-  process.on("uncaughtException", (err: Error) => {
-    console.error("[airlock] Uncaught exception — initiating violent GC");
+  process.on('uncaughtException', (err: Error) => {
+    console.error('[airlock] Uncaught exception — initiating violent GC');
     console.error(err);
     violentGarbageCollect();
     // Re-throw to ensure process exits with error
@@ -128,29 +126,29 @@ export function installCrashTrap(): void {
   });
 
   // Unhandled promise rejection — same treatment
-  process.on("unhandledRejection", (reason: unknown) => {
-    console.error("[airlock] Unhandled rejection — initiating violent GC");
+  process.on('unhandledRejection', (reason: unknown) => {
+    console.error('[airlock] Unhandled rejection — initiating violent GC');
     console.error(reason);
     violentGarbageCollect();
     throw reason;
   });
 
   // Before exit — final cleanup opportunity
-  process.on("beforeExit", () => {
-    console.error("[airlock] beforeExit — initiating violent GC");
+  process.on('beforeExit', () => {
+    console.error('[airlock] beforeExit — initiating violent GC');
     violentGarbageCollect();
   });
 
   // SIGTERM — container orchestrators send this
-  process.on("SIGTERM", () => {
-    console.error("[airlock] SIGTERM received — initiating violent GC");
+  process.on('SIGTERM', () => {
+    console.error('[airlock] SIGTERM received — initiating violent GC');
     violentGarbageCollect();
     process.exit(0);
   });
 
   // SIGINT — Ctrl+C
-  process.on("SIGINT", () => {
-    console.error("[airlock] SIGINT received — initiating violent GC");
+  process.on('SIGINT', () => {
+    console.error('[airlock] SIGINT received — initiating violent GC');
     violentGarbageCollect();
     process.exit(0);
   });
@@ -175,7 +173,7 @@ export function violentGarbageCollect(): void {
     try {
       // Synchronous destruction: we use execSync because async
       // cleanup won't complete before process exit
-      const { execSync } = require("child_process") as typeof import("child_process");
+      const { execSync } = require('child_process') as typeof import('child_process');
 
       // Try graceful kill first
       try {
@@ -208,16 +206,16 @@ export function violentGarbageCollect(): void {
  * and reused rather than regenerated on each container creation.
  */
 function getSeccompSecurityOpt(): string {
-  const fs = require("fs") as typeof import("fs");
-  const path = require("path") as typeof import("path");
-  const os = require("os") as typeof import("os");
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const os = require('os') as typeof import('os');
 
   const profileJson = serializeSeccompProfile();
   const tmpDir = os.tmpdir();
-  const profilePath = path.join(tmpDir, "airlock-seccomp.json");
+  const profilePath = path.join(tmpDir, 'airlock-seccomp.json');
 
   // Write profile to temp location (idempotent if unchanged)
-  fs.writeFileSync(profilePath, profileJson, { encoding: "utf-8" });
+  fs.writeFileSync(profilePath, profileJson, { encoding: 'utf-8' });
 
   return `seccomp=${profilePath}`;
 }
@@ -234,31 +232,31 @@ function getSeccompSecurityOpt(): string {
  */
 function buildHostConfig(
   config: AirlockContainerConfig,
-): Dockerode.ContainerCreateOptions["HostConfig"] {
+): Dockerode.ContainerCreateOptions['HostConfig'] {
   // Build binds from mounts — input files are read-only (:ro)
   const binds: string[] = (config.mounts ?? []).map((m) => {
-    const roFlag = m.readOnly ? ":ro" : "";
+    const roFlag = m.readOnly ? ':ro' : '';
     return `${m.hostPath}:${m.containerPath}${roFlag}`;
   });
 
   // Build tmpfs mounts for writable areas
   const tmpfs: Record<string, string> = config.tmpfs ?? {
-    "/tmp": "rw,noexec,nosuid,size=100m",
-    "/var/tmp": "rw,noexec,nosuid,size=50m",
+    '/tmp': 'rw,noexec,nosuid,size=100m',
+    '/var/tmp': 'rw,noexec,nosuid,size=50m',
   };
 
   // Security options from Dangerzone profile
   const securityOpt: string[] = [
-    "no-new-privileges", // Do not let the container assume new privileges
+    'no-new-privileges', // Do not let the container assume new privileges
     getSeccompSecurityOpt(), // Custom seccomp policy
   ];
 
   return {
     // Air-gapped: no network access
-    NetworkMode: "none",
+    NetworkMode: 'none',
 
     // Drop all capabilities (we don't need SYS_CHROOT like Dangerzone/gVisor)
-    CapDrop: ["ALL"],
+    CapDrop: ['ALL'],
 
     // Security options: no-new-privileges + custom seccomp
     SecurityOpt: securityOpt,
@@ -293,19 +291,15 @@ function buildHostConfig(
  *
  * @returns Container session with ID for tracking
  */
-export async function createContainer(
-  config: AirlockContainerConfig,
-): Promise<ContainerSession> {
+export async function createContainer(config: AirlockContainerConfig): Promise<ContainerSession> {
   const docker = getDocker();
 
   // Prepare environment as array of KEY=VALUE strings
-  const envArray = Object.entries(config.env ?? {}).map(
-    ([key, value]) => `${key}=${value}`,
-  );
+  const envArray = Object.entries(config.env ?? {}).map(([key, value]) => `${key}=${value}`);
 
   // Add debug flag if requested
   if (config.debug) {
-    envArray.push("RUNSC_DEBUG=1");
+    envArray.push('RUNSC_DEBUG=1');
   }
 
   // Build the hardened HostConfig
@@ -317,8 +311,8 @@ export async function createContainer(
     name: config.name,
     Cmd: config.cmd,
     Env: envArray,
-    WorkingDir: config.workingDir ?? "/workspace",
-    User: config.user ?? "1000:1000", // Non-root user (nobody)
+    WorkingDir: config.workingDir ?? '/workspace',
+    User: config.user ?? '1000:1000', // Non-root user (nobody)
     HostConfig: hostConfig,
     // Prevent stdin/stdout unless explicitly needed
     AttachStdin: false,
@@ -328,9 +322,9 @@ export async function createContainer(
     StdinOnce: false,
     // Labels for identification
     Labels: {
-      "app.airlock.managed": "true",
-      "app.airlock.session": config.name,
-      "app.airlock.created": new Date().toISOString(),
+      'app.airlock.managed': 'true',
+      'app.airlock.session': config.name,
+      'app.airlock.created': new Date().toISOString(),
     },
   };
 
@@ -463,8 +457,8 @@ export async function createFileContainer(
     debug?: boolean;
   },
 ): Promise<ContainerSession> {
-  const path = require("path") as typeof import("path");
-  const fs = require("fs") as typeof import("fs");
+  const path = require('path') as typeof import('path');
+  const fs = require('fs') as typeof import('fs');
 
   // Validate file exists
   if (!fs.existsSync(filePath)) {
@@ -476,30 +470,30 @@ export async function createFileContainer(
   let viewerCmd: string[];
 
   switch (ext) {
-    case ".pdf":
-      viewerCmd = ["evince", "/workspace/target.pdf"];
+    case '.pdf':
+      viewerCmd = ['evince', '/workspace/target.pdf'];
       break;
-    case ".html":
-    case ".htm":
-      viewerCmd = ["chromium", "--no-sandbox", "/workspace/target.html"];
+    case '.html':
+    case '.htm':
+      viewerCmd = ['chromium', '--no-sandbox', '/workspace/target.html'];
       break;
-    case ".txt":
-    case ".md":
-      viewerCmd = ["cat", "/workspace/target.txt"];
+    case '.txt':
+    case '.md':
+      viewerCmd = ['cat', '/workspace/target.txt'];
       break;
     default:
       // Default to chromium for unknown types
-      viewerCmd = ["chromium", "--no-sandbox", "/workspace/target"];
+      viewerCmd = ['chromium', '--no-sandbox', '/workspace/target'];
   }
 
   // Generate unique container name
   const timestamp = Date.now();
   const basename = path.basename(filePath, ext);
-  const safeName = basename.replace(/[^a-zA-Z0-9-]/g, "-").slice(0, 20);
+  const safeName = basename.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20);
   const containerName = options?.name ?? `airlock-${safeName}-${timestamp}`;
 
   return createContainer({
-    image: options?.image ?? "airlock/sandbox:latest",
+    image: options?.image ?? 'airlock/sandbox:latest',
     name: containerName,
     cmd: viewerCmd,
     mounts: [
@@ -510,8 +504,8 @@ export async function createFileContainer(
       },
     ],
     env: {
-      DISPLAY: ":1", // KasmVNC display
-      VNC_RESOLUTION: "1920x1080",
+      DISPLAY: ':1', // KasmVNC display
+      VNC_RESOLUTION: '1920x1080',
     },
     debug: options?.debug ?? false,
   });
@@ -531,7 +525,7 @@ export async function createUrlContainer(
   },
 ): Promise<ContainerSession> {
   // Validate URL (basic check)
-  const validProtocols = ["http:", "https:"];
+  const validProtocols = ['http:', 'https:'];
   const urlObj = new URL(url);
   if (!validProtocols.includes(urlObj.protocol)) {
     throw new Error(`Invalid URL protocol: ${urlObj.protocol}`);
@@ -539,16 +533,16 @@ export async function createUrlContainer(
 
   // Generate unique container name
   const timestamp = Date.now();
-  const host = urlObj.hostname.replace(/[^a-zA-Z0-9-]/g, "-").slice(0, 20);
+  const host = urlObj.hostname.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20);
   const containerName = options?.name ?? `airlock-url-${host}-${timestamp}`;
 
   return createContainer({
-    image: options?.image ?? "airlock/sandbox:latest",
+    image: options?.image ?? 'airlock/sandbox:latest',
     name: containerName,
-    cmd: ["chromium", "--no-sandbox", url],
+    cmd: ['chromium', '--no-sandbox', url],
     env: {
-      DISPLAY: ":1",
-      VNC_RESOLUTION: "1920x1080",
+      DISPLAY: ':1',
+      VNC_RESOLUTION: '1920x1080',
     },
     debug: options?.debug ?? false,
   });

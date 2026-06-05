@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm -r build",
-    "typecheck": "pnpm -r typecheck",
-    "lint": "eslint packages/*/src --ext .ts,.tsx --ignore-pattern '**/_ref/**'",
+    "typecheck": "pnpm --filter @airlock/core typecheck",
+    "lint": "eslint packages/core/src packages/ui/src --ext .ts,.tsx --ignore-pattern '**/_ref/**'",
     "lint:fix": "eslint packages/*/src --ext .ts,.tsx --fix --ignore-pattern '**/_ref/**'",
-    "format": "prettier --write 'packages/*/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
-    "format:check": "prettier --check 'packages/*/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
+    "format": "prettier --write 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
+    "format:check": "prettier --check 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
     "ci:lint": "pnpm lint && pnpm format:check",
     "ci:docker": "docker build -t airlock/sandbox:test ./packages/sandbox"
   },

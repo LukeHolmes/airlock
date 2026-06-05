@@ -180,15 +180,18 @@ export default function AirlockApp() {
     setIsDragging(false);
   }, []);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      void handleFileDrop(file);
-    }
-  }, [handleFileDrop]);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        void handleFileDrop(file);
+      }
+    },
+    [handleFileDrop],
+  );
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -219,8 +222,14 @@ export default function AirlockApp() {
   return (
     <div className="min-h-screen w-full bg-[#08090B] text-[#ECEFF3] font-sans overflow-hidden flex flex-col selection:bg-[#3DE8D4]/20 selection:text-[#04201D]">
       {/* Background Texture: Subtle Grid */}
-      <div className="absolute inset-0 pointer-events-none"
-           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(255,255,255,0.022) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.022) 1px, transparent 1px)',
+          backgroundSize: '32px 32px',
+        }}
+      />
 
       {/* Top Command Bar */}
       <header className="h-12 border-b border-[#23272F] bg-[#0C0E11]/80 backdrop-blur-md flex items-center justify-between px-4 z-10 window-drag">
@@ -228,7 +237,9 @@ export default function AirlockApp() {
           <div className="flex items-center justify-center w-6 h-6 text-[#3DE8D4]">
             <ShieldCheck size={18} strokeWidth={2} />
           </div>
-          <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase text-[#7E8B9A]">Airlock</span>
+          <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase text-[#7E8B9A]">
+            Airlock
+          </span>
         </div>
 
         {/* Status indicators */}
@@ -237,7 +248,9 @@ export default function AirlockApp() {
             <div className="flex items-center gap-4 no-drag">
               <div className="flex items-center gap-2 bg-[#28D3BF]/10 border border-[#28D3BF]/20 px-2.5 py-1 rounded-[4px]">
                 <span className="w-2 h-2 rounded-full bg-[#3DE8D4] shadow-[0_0_8px_#3DE8D4]" />
-                <span className="font-mono text-[11px] font-medium tracking-widest text-[#3DE8D4] uppercase">Sealed</span>
+                <span className="font-mono text-[11px] font-medium tracking-widest text-[#3DE8D4] uppercase">
+                  Sealed
+                </span>
               </div>
               <button
                 onClick={handleDestroyWorkspace}
@@ -250,7 +263,9 @@ export default function AirlockApp() {
           )}
           {!ipc && (
             <div className="flex items-center gap-2 bg-[#F23D3D]/10 border border-[#F23D3D]/20 px-2.5 py-1 rounded-[4px]">
-              <span className="font-mono text-[11px] font-medium tracking-widest text-[#F23D3D] uppercase">IPC Error</span>
+              <span className="font-mono text-[11px] font-medium tracking-widest text-[#F23D3D] uppercase">
+                IPC Error
+              </span>
             </div>
           )}
         </div>
@@ -261,7 +276,9 @@ export default function AirlockApp() {
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20">
           <div className="bg-[#F23D3D]/10 border border-[#F23D3D]/30 rounded-[6px] px-4 py-2 flex items-center gap-3">
             <span className="text-[#F23D3D] text-[13px]">{error}</span>
-            <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">×</button>
+            <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">
+              ×
+            </button>
           </div>
         </div>
       )}
@@ -269,7 +286,6 @@ export default function AirlockApp() {
       {/* Main Content Area */}
       <main className="flex-1 relative flex items-center justify-center p-4 md:p-8 z-0">
         <AnimatePresence mode="wait">
-
           {/* STATE: IDLE */}
           {appState === 'idle' && (
             <motion.div
@@ -286,12 +302,15 @@ export default function AirlockApp() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`relative flex flex-col items-center justify-center h-80 rounded-[10px] border transition-all duration-200 ease-out
-                  ${isDragging
-                    ? 'border-[#3DE8D4] bg-[#3DE8D4]/5 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)]'
-                    : 'border-dashed border-[#333944] bg-[#0C0E11] hover:border-[#7E8B9A] hover:bg-[#12151A]'
+                  ${
+                    isDragging
+                      ? 'border-[#3DE8D4] bg-[#3DE8D4]/5 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)]'
+                      : 'border-dashed border-[#333944] bg-[#0C0E11] hover:border-[#7E8B9A] hover:bg-[#12151A]'
                   }`}
               >
-                <div className={`p-4 rounded-full mb-4 transition-colors duration-200 ${isDragging ? 'bg-[#3DE8D4]/10 text-[#3DE8D4]' : 'bg-[#181C22] text-[#AAB3BE]'}`}>
+                <div
+                  className={`p-4 rounded-full mb-4 transition-colors duration-200 ${isDragging ? 'bg-[#3DE8D4]/10 text-[#3DE8D4]' : 'bg-[#181C22] text-[#AAB3BE]'}`}
+                >
                   <FileDown size={32} strokeWidth={1.5} />
                 </div>
                 <h2 className="text-[23px] font-semibold text-[#ECEFF3] tracking-tight mb-2">
@@ -315,7 +334,10 @@ export default function AirlockApp() {
               {/* URL Input Bar */}
               <form onSubmit={handleFormSubmit} className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Link size={16} className="text-[#6E7782] group-focus-within:text-[#FF6A2B] transition-colors" />
+                  <Link
+                    size={16}
+                    className="text-[#6E7782] group-focus-within:text-[#FF6A2B] transition-colors"
+                  />
                 </div>
                 <input
                   type="url"
@@ -356,7 +378,9 @@ export default function AirlockApp() {
             >
               <div className="flex items-center gap-3 mb-6 border-b border-[#1A1E24] pb-4">
                 <Box size={20} className="text-[#3DE8D4] animate-pulse" />
-                <h3 className="text-[17px] font-semibold text-[#ECEFF3]">Orchestrating isolation...</h3>
+                <h3 className="text-[17px] font-semibold text-[#ECEFF3]">
+                  Orchestrating isolation...
+                </h3>
               </div>
               <div className="font-mono text-[12.5px] text-[#AAB3BE] flex flex-col gap-2 min-h-[160px]">
                 {logs.map((log, i) => (
@@ -364,7 +388,13 @@ export default function AirlockApp() {
                     key={i}
                     initial={{ opacity: 0, x: -10 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className={log.includes('sealed') ? 'text-[#3DE8D4]' : log.includes('err') ? 'text-[#F23D3D]' : ''}
+                    className={
+                      log.includes('sealed')
+                        ? 'text-[#3DE8D4]'
+                        : log.includes('err')
+                          ? 'text-[#F23D3D]'
+                          : ''
+                    }
                   >
                     {log}
                   </motion.div>
@@ -395,12 +425,14 @@ export default function AirlockApp() {
                   <div className="w-2.5 h-2.5 rounded-full bg-[#3DE8D4]" />
                 </div>
                 <div className="flex-1 flex justify-center">
-                   <div className="bg-[#181C22] rounded-[4px] border border-[#23272F] px-3 py-1 flex items-center gap-2 max-w-sm w-full">
-                     <Terminal size={12} className="text-[#6E7782]" />
-                     <span className="font-mono text-[11px] text-[#AAB3BE] truncate">
-                       {session ? `${session.name} — ${session.id.slice(0, 12)}` : 'root@airlock-instance-04:~#'}
-                     </span>
-                   </div>
+                  <div className="bg-[#181C22] rounded-[4px] border border-[#23272F] px-3 py-1 flex items-center gap-2 max-w-sm w-full">
+                    <Terminal size={12} className="text-[#6E7782]" />
+                    <span className="font-mono text-[11px] text-[#AAB3BE] truncate">
+                      {session
+                        ? `${session.name} — ${session.id.slice(0, 12)}`
+                        : 'root@airlock-instance-04:~#'}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -416,7 +448,9 @@ export default function AirlockApp() {
                 {/* VNC placeholder text overlay */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="text-center">
-                    <p className="font-mono text-[13px] text-[#7E8B9A] mb-2">KasmVNC WebSocket Feed</p>
+                    <p className="font-mono text-[13px] text-[#7E8B9A] mb-2">
+                      KasmVNC WebSocket Feed
+                    </p>
                     <p className="font-mono text-[11px] text-[#474E58]">
                       {session ? `Session: ${session.id.slice(0, 12)}` : 'Initializing...'}
                     </p>
@@ -425,7 +459,6 @@ export default function AirlockApp() {
               </div>
             </motion.div>
           )}
-
         </AnimatePresence>
       </main>
     </div>

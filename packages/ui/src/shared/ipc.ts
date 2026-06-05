@@ -8,21 +8,21 @@
 // Container lifecycle channels
 export const IPC_CHANNELS = {
   // Lifecycle
-  CONTAINER_CREATE: "airlock:container:create",
-  CONTAINER_CREATE_URL: "airlock:container:create-url",
-  CONTAINER_DESTROY: "airlock:container:destroy",
-  CONTAINER_KILL: "airlock:container:kill",
-  CONTAINER_LIST: "airlock:container:list",
-  CONTAINER_STATUS: "airlock:container:status",
+  CONTAINER_CREATE: 'airlock:container:create',
+  CONTAINER_CREATE_URL: 'airlock:container:create-url',
+  CONTAINER_DESTROY: 'airlock:container:destroy',
+  CONTAINER_KILL: 'airlock:container:kill',
+  CONTAINER_LIST: 'airlock:container:list',
+  CONTAINER_STATUS: 'airlock:container:status',
 
   // Session events (main → renderer)
-  SESSION_STARTED: "airlock:session:started",
-  SESSION_ENDED: "airlock:session:ended",
-  SESSION_ERROR: "airlock:session:error",
+  SESSION_STARTED: 'airlock:session:started',
+  SESSION_ENDED: 'airlock:session:ended',
+  SESSION_ERROR: 'airlock:session:error',
 
   // System
-  INSTALL_CRASH_TRAP: "airlock:system:install-crash-trap",
-  GET_VERSION: "airlock:system:get-version",
+  INSTALL_CRASH_TRAP: 'airlock:system:install-crash-trap',
+  GET_VERSION: 'airlock:system:get-version',
 } as const;
 
 // Type-safe channel names
@@ -65,7 +65,7 @@ export interface SessionStartedEvent {
 
 export interface SessionEndedEvent {
   sessionId: string;
-  reason: "destroyed" | "crashed" | "error";
+  reason: 'destroyed' | 'crashed' | 'error';
 }
 
 export interface SessionErrorEvent {
