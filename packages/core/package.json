@@ -1,0 +1,20 @@
+{
+  "name": "@airlock/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "echo 'core dev'",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dockerode": "^4.0.2",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/dockerode": "^3.3.29",
+    "@types/ws": "^8.5.12"
+  }
+}
