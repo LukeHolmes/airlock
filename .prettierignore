@@ -1,0 +1,33 @@
+# Build outputs
+dist/
+node_modules/
+
+# Lock files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Logs
+*.log
+
+# Reference code (not maintained by us)
+openclaw-ref/
+packages/*/src/_ref/
+
+# Generated files
+*.generated.ts
+*.generated.tsx
+
+# Docker
+Dockerfile
+.dockerignore
+
+# Git
+.git/
+.github/
+
+# Misc
+*.md
+*.yml
+*.yaml
+*.json
