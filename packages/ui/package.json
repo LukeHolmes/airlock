@@ -11,8 +11,9 @@
     "build:preload": "tsc -p tsconfig.preload.json",
     "build:renderer": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prestart": "pnpm --filter @airlock/core build",
     "start": "electron .",
-    "electron:dev": "npm run build && electron .",
+    "electron:dev": "pnpm --filter @airlock/core build && npm run build && electron .",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
