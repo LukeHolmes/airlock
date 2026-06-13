@@ -89,7 +89,7 @@ jobs:
           echo "Testing Docker image with Airlock security profile..."
 
           docker network inspect airlock-ci-test >/dev/null 2>&1 || \
-            docker network create --internal airlock-ci-test
+            docker network create airlock-ci-test
 
           # Run container on internal network (matches ContainerManager VNC sessions)
           docker run -d --name airlock-test \

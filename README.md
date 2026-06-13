@@ -153,6 +153,17 @@ Airlock's design draws from four open-source reference implementations:
 - Node.js >= 20
 - pnpm >= 9
 
+## Quick Start
+
+```bash
+pnpm install
+pnpm build
+pnpm sandbox:build    # builds airlock/sandbox:latest (required before first session)
+cd packages/ui && pnpm start
+```
+
+Drop a PDF onto the window to open it in an isolated container. Click **Destroy workspace** when done.
+
 ---
 
 ## Licence

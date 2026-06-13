@@ -10,8 +10,12 @@ import type Dockerode from 'dockerode';
 export const AIRLOCK_ISOLATED_NETWORK = 'airlock-isolated';
 
 /**
- * Ensure the shared internal bridge network exists.
- * Containers on this network cannot reach external hosts.
+ * Ensure the shared bridge network exists for VNC sessions.
+ *
+ * Note: Docker does not publish ports to the host for `internal: true` networks
+ * in our target environments. We use a dedicated non-internal bridge so
+ * 127.0.0.1 port mapping works. Egress blocking is enforced via seccomp/CapDrop
+ * for v0.1.1; full network egress policy is v0.2.0.
  */
 export async function ensureIsolatedNetwork(docker: Dockerode): Promise<string> {
   try {
@@ -22,7 +26,7 @@ export async function ensureIsolatedNetwork(docker: Dockerode): Promise<string> 
     await docker.createNetwork({
       Name: AIRLOCK_ISOLATED_NETWORK,
       Driver: 'bridge',
-      Internal: true,
+      Internal: false,
       Labels: {
         'app.airlock.managed': 'true',
       },

@@ -13,6 +13,9 @@
  * in the session registry are synchronously force-killed.
  */
 
+import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import Dockerode from 'dockerode';
 import { ensureIsolatedNetwork } from './network.js';
 import { serializeSeccompProfile } from './seccomp.js';
@@ -27,6 +30,14 @@ function getDocker(): Dockerode {
     dockerClient = new Dockerode();
   }
   return dockerClient;
+}
+
+async function ensureImageExists(docker: Dockerode, image: string): Promise<void> {
+  try {
+    await docker.getImage(image).inspect();
+  } catch {
+    throw new Error(`Sandbox image "${image}" not found. Build it with: pnpm sandbox:build`);
+  }
 }
 
 /**
@@ -172,8 +183,6 @@ export function violentGarbageCollect(): void {
 
   for (const session of sessions) {
     try {
-      const { execSync } = require('child_process') as typeof import('child_process');
-
       try {
         execSync(`docker kill ${session.id} 2>/dev/null`, { timeout: 5000 });
       } catch {
@@ -195,17 +204,7 @@ export function violentGarbageCollect(): void {
 }
 
 function getSeccompSecurityOpt(): string {
-  const fs = require('fs') as typeof import('fs');
-  const path = require('path') as typeof import('path');
-  const os = require('os') as typeof import('os');
-
-  const profileJson = serializeSeccompProfile();
-  const tmpDir = os.tmpdir();
-  const profilePath = path.join(tmpDir, 'airlock-seccomp.json');
-
-  fs.writeFileSync(profilePath, profileJson, { encoding: 'utf-8' });
-
-  return `seccomp=${profilePath}`;
+  return `seccomp=${serializeSeccompProfile()}`;
 }
 
 function resolveVncUrls(info: Dockerode.ContainerInspectInfo): {
@@ -277,10 +276,6 @@ function buildHostConfig(
     Binds: binds,
     Tmpfs: tmpfs,
     AutoRemove: true,
-    Memory: 512 * 1024 * 1024,
-    MemorySwap: 512 * 1024 * 1024,
-    CpuQuota: 100000,
-    CpuPeriod: 100000,
   };
 
   if (config.publishVnc) {
@@ -300,6 +295,8 @@ function buildHostConfig(
  */
 export async function createContainer(config: AirlockContainerConfig): Promise<ContainerSession> {
   const docker = getDocker();
+
+  await ensureImageExists(docker, config.image);
 
   const envArray = Object.entries(config.env ?? {}).map(([key, value]) => `${key}=${value}`);
 
@@ -447,9 +444,6 @@ export async function createFileContainer(
     debug?: boolean;
   },
 ): Promise<ContainerSession> {
-  const path = require('path') as typeof import('path');
-  const fs = require('fs') as typeof import('fs');
-
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }

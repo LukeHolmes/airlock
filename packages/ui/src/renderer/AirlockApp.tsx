@@ -73,6 +73,9 @@ export default function AirlockApp() {
         const newSession = await ipc.createFileContainer(request);
         setSession(newSession);
         setVncPageUrl(newSession.vncPageUrl);
+        if (newSession.vncPageUrl) {
+          setAppState('active');
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
@@ -301,7 +304,10 @@ export default function AirlockApp() {
               </div>
 
               {/* URL input deferred to v0.2.0 (requires network opt-in) */}
-              <form onSubmit={handleFormSubmit} className="relative group opacity-50 pointer-events-none">
+              <form
+                onSubmit={handleFormSubmit}
+                className="relative group opacity-50 pointer-events-none"
+              >
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Link size={16} className="text-[#6E7782]" />
                 </div>

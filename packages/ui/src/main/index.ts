@@ -8,7 +8,7 @@
  * - Protocol/URL handling
  */
 
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -33,6 +33,32 @@ const VERSION = '0.1.0';
 
 // Keep global reference to prevent GC
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * Allow the renderer (file://) to embed KasmVNC from 127.0.0.1 via iframe.
+ * Strips frame-blocking headers from local VNC HTTP responses only.
+ */
+function configureSessionForLocalVnc(): void {
+  const defaultSession = session.defaultSession;
+
+  defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const { url } = details;
+    if (!url.startsWith('http://127.0.0.1:') && !url.startsWith('http://localhost:')) {
+      callback({ responseHeaders: details.responseHeaders });
+      return;
+    }
+
+    const responseHeaders = { ...details.responseHeaders };
+    for (const key of Object.keys(responseHeaders)) {
+      const lower = key.toLowerCase();
+      if (lower === 'content-security-policy' || lower === 'x-frame-options') {
+        delete responseHeaders[key];
+      }
+    }
+
+    callback({ responseHeaders });
+  });
+}
 
 /**
  * Create the main application window.
@@ -77,10 +103,12 @@ function createMainWindow(): BrowserWindow {
     window.loadFile(path.join(__dirname, '../../renderer/index.html'));
   }
 
-  // Security: prevent navigation to external sites
+  // Security: prevent navigation to external sites (allow dev server + file:// shell)
   window.webContents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
-    if (parsedUrl.origin !== 'http://localhost:5173') {
+    const isDevServer = parsedUrl.origin === 'http://localhost:5173';
+    const isFileShell = parsedUrl.protocol === 'file:';
+    if (!isDevServer && !isFileShell) {
       event.preventDefault();
       console.warn(`[main] Blocked navigation to ${navigationUrl}`);
     }
@@ -253,6 +281,8 @@ function registerIpcHandlers(): void {
 
 app.whenReady().then(async () => {
   console.log(`[main] Airlock ${VERSION} starting...`);
+
+  configureSessionForLocalVnc();
 
   // Register IPC handlers before window creation
   registerIpcHandlers();

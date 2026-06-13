@@ -63,7 +63,8 @@ RUN apk add --no-cache \
     ca-certificates \
     file \
     xdg-utils \
-    shared-mime-info
+    shared-mime-info \
+    xdpyinfo
 
 # ------------------------------------------------------------------------------
 # Stage 2: KasmVNC Server
@@ -152,18 +153,10 @@ FROM kasmvnc AS desktop
 
 RUN apk add --no-cache \
     openbox \
-    obconf \
-    lxappearance \
     gtk+3.0 \
     adwaita-icon-theme \
     hicolor-icon-theme \
-    # Image viewer
-    feh \
-    # File manager
-    pcmanfm \
-    # Notifications
-    libnotify \
-    notification-daemon
+    libnotify
 
 # Openbox configuration
 COPY <<'EOF' /etc/xdg/openbox/menu.xml
@@ -279,7 +272,6 @@ EOF
 # Document viewer (Evince) and dependencies
 RUN apk add --no-cache \
     evince \
-    evince-documents \
     poppler-utils
 
 # ------------------------------------------------------------------------------
@@ -304,8 +296,12 @@ RUN mkdir -p \
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY launch-target.sh /usr/local/bin/launch-target.sh
+COPY start-kasmvnc.sh /usr/local/bin/start-kasmvnc.sh
 COPY cleanup.sh /usr/local/bin/cleanup.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/launch-target.sh /usr/local/bin/cleanup.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/launch-target.sh /usr/local/bin/start-kasmvnc.sh /usr/local/bin/cleanup.sh
+
+# Alpine chromium package installs /usr/bin/chromium; scripts expect chromium-browser
+RUN if [ ! -e /usr/bin/chromium-browser ]; then ln -s /usr/bin/chromium /usr/bin/chromium-browser; fi
 
 # Final ownership
 RUN chown -R airlock:airlock \

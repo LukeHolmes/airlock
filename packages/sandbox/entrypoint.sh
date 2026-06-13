@@ -100,7 +100,6 @@ start_x11() {
         +extension GLX \
         +render \
         -noreset \
-        -novtswitch \
         > /tmp/Xvfb.log 2>&1 &
     
     local xvfb_pid=$!
@@ -129,8 +128,8 @@ start_x11() {
 start_kasmvnc() {
     log_info "Starting KasmVNC on port ${VNC_PORT}..."
     
-    # Build geometry string
-    local geometry="${VNC_RESOLUTION}x${VNC_COL_DEPTH}"
+    # Build geometry string (width x height; depth is a separate flag)
+    local geometry="${VNC_RESOLUTION}"
     
     # Start KasmVNC server
     # Key options for Airlock:
