@@ -8,7 +8,7 @@
  * - Protocol/URL handling
  */
 
-import { app, BrowserWindow, ipcMain, protocol, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -58,7 +58,7 @@ function createMainWindow(): BrowserWindow {
       sandbox: false, // Preload needs filesystem access for dockerode
 
       // Preload script path
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../../preload/preload/index.js'),
 
       // Security hardening
       webSecurity: true,
@@ -74,7 +74,7 @@ function createMainWindow(): BrowserWindow {
     window.webContents.openDevTools();
   } else {
     // Production: load built HTML
-    window.loadFile(path.join(__dirname, '../renderer/index.html'));
+    window.loadFile(path.join(__dirname, '../../renderer/index.html'));
   }
 
   // Security: prevent navigation to external sites
@@ -107,13 +107,17 @@ function toIpcSession(session: {
   id: string;
   name: string;
   createdAt: Date;
-  config: { image: string; cmd: string[] };
+  config: { image: string; cmd?: string[] };
+  vncUrl?: string;
+  vncPageUrl?: string;
 }): ContainerSession {
   return {
     id: session.id,
     name: session.name,
     createdAt: session.createdAt.toISOString(),
     config: session.config,
+    vncUrl: session.vncUrl,
+    vncPageUrl: session.vncPageUrl,
   };
 }
 
@@ -153,11 +157,7 @@ function registerIpcHandlers(): void {
           debug: request.debug,
         });
         const ipcSession = toIpcSession(session);
-
-        // Calculate VNC URL (KasmVNC on port 6901 inside container)
-        // In production, this would be proxied through the container
-        const vncUrl = `http://localhost:6901/vnc.html?autoconnect=true&resize=scale`;
-        emitSessionStarted(ipcSession, vncUrl);
+        emitSessionStarted(ipcSession, ipcSession.vncUrl);
 
         return ipcSession;
       } catch (error) {
@@ -179,7 +179,7 @@ function registerIpcHandlers(): void {
           debug: request.debug,
         });
         const ipcSession = toIpcSession(session);
-        emitSessionStarted(ipcSession);
+        emitSessionStarted(ipcSession, ipcSession.vncUrl);
         return ipcSession;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
@@ -306,9 +306,9 @@ app.on('before-quit', async (event) => {
 });
 
 // Security: block certificate errors (development only)
-app.on('certificate-error', (event, _webContents, _url, _error, _certificate, callback) => {
-  // In development, allow self-signed certs for localhost
-  if (process.env.VITE_DEV_SERVER_URL) {
+app.on('certificate-error', (event, _webContents, url, _error, _certificate, callback) => {
+  // Allow self-signed certs for local VNC endpoints and Vite dev server
+  if (process.env.VITE_DEV_SERVER_URL ?? url.startsWith('http://127.0.0.1:')) {
     event.preventDefault();
     callback(true);
   } else {

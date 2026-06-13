@@ -53,6 +53,11 @@ jobs:
       - name: TypeScript compilation check
         run: pnpm typecheck
 
+      - name: Build packages
+        run: |
+          pnpm --filter @airlock/core build
+          pnpm --filter @airlock/ui build
+
   # =============================================================================
   # Job 2: Docker Image Build Test
   # =============================================================================

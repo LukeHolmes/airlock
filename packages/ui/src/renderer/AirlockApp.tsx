@@ -1,10 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, FileDown, Link, Zap, Trash2, Box, Terminal } from 'lucide-react';
+import VncViewer from './VncViewer';
 import type {
   ContainerSession,
   CreateFileContainerRequest,
-  CreateUrlContainerRequest,
   SessionStartedEvent,
   SessionEndedEvent,
   SessionErrorEvent,
@@ -21,51 +21,10 @@ export default function AirlockApp() {
   const [urlInput, setUrlInput] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
   const [session, setSession] = useState<ContainerSession | null>(null);
+  const [vncPageUrl, setVncPageUrl] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Install crash trap on mount
-  useEffect(() => {
-    if (ipc) {
-      ipc.installCrashTrap().catch((err: unknown) => {
-        console.error('Failed to install crash trap:', err);
-      });
-
-      // Subscribe to session events
-      const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
-        console.log('[AirlockApp] Session started:', event.session.name);
-        setSession(event.session);
-        setAppState('active');
-        setLogs((prev) => [...prev, `[sys] Container sealed — ${event.session.name}`]);
-        if (event.vncUrl) {
-          setLogs((prev) => [...prev, `[vnc] WebSocket bridge at ${event.vncUrl}`]);
-        }
-      });
-
-      const unsubEnded = ipc.onSessionEnded((event: SessionEndedEvent) => {
-        console.log('[AirlockApp] Session ended:', event.sessionId, event.reason);
-        setSession(null);
-        setAppState('idle');
-        setLogs([]);
-        setUrlInput('');
-      });
-
-      const unsubError = ipc.onSessionError((event: SessionErrorEvent) => {
-        console.error('[AirlockApp] Session error:', event.sessionId, event.error);
-        setError(event.error);
-        setAppState('idle');
-      });
-
-      return () => {
-        unsubStarted();
-        unsubEnded();
-        unsubError();
-      };
-    }
-  }, []);
-
-  // Orchestration sequence logs
-  const startIgnitionSequence = (type: 'file' | 'url', payload: string) => {
+  const startIgnitionSequence = useCallback((type: 'file' | 'url') => {
     setAppState('igniting');
     setLogs([]);
     setError(null);
@@ -91,66 +50,99 @@ export default function AirlockApp() {
     }, 400);
 
     return () => clearInterval(interval);
-  };
-
-  // --- IPC Backend Calls ---
-  const handleFileDrop = useCallback(async (file: File) => {
-    const cleanup = startIgnitionSequence('file', file.name);
-
-    if (!ipc) {
-      setError('IPC not available');
-      setAppState('idle');
-      cleanup();
-      return;
-    }
-
-    try {
-      const request: CreateFileContainerRequest = {
-        filePath: file.path || file.name,
-        name: `airlock-${file.name.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20)}`,
-      };
-
-      const newSession = await ipc.createFileContainer(request);
-      setSession(newSession);
-      // Session started event will transition to 'active'
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      setAppState('idle');
-      setLogs((prev) => [...prev, `[err] ${message}`]);
-    } finally {
-      cleanup();
-    }
   }, []);
 
-  const handleUrlSubmit = useCallback(async (url: string) => {
-    const cleanup = startIgnitionSequence('url', url);
+  const handleFilePath = useCallback(
+    async (filePath: string) => {
+      const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
+      const cleanup = startIgnitionSequence('file');
 
-    if (!ipc) {
-      setError('IPC not available');
+      if (!ipc) {
+        setError('IPC not available');
+        setAppState('idle');
+        cleanup();
+        return;
+      }
+
+      try {
+        const request: CreateFileContainerRequest = {
+          filePath,
+          name: `airlock-${fileName.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20)}`,
+        };
+
+        const newSession = await ipc.createFileContainer(request);
+        setSession(newSession);
+        setVncPageUrl(newSession.vncPageUrl);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        setAppState('idle');
+        setLogs((prev) => [...prev, `[err] ${message}`]);
+      } finally {
+        cleanup();
+      }
+    },
+    [startIgnitionSequence],
+  );
+
+  const handleFileDrop = useCallback(
+    async (file: File) => {
+      if (!ipc) {
+        setError('IPC not available');
+        return;
+      }
+
+      const filePath = ipc.getPathForFile(file);
+      await handleFilePath(filePath);
+    },
+    [handleFilePath],
+  );
+
+  // Install crash trap on mount
+  useEffect(() => {
+    if (!ipc) return;
+
+    ipc.installCrashTrap().catch((err: unknown) => {
+      console.error('Failed to install crash trap:', err);
+    });
+
+    const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
+      console.log('[AirlockApp] Session started:', event.session.name);
+      setSession(event.session);
+      setVncPageUrl(event.session.vncPageUrl);
+      setAppState('active');
+      setLogs((prev) => [...prev, `[sys] Container sealed — ${event.session.name}`]);
+      if (event.vncUrl) {
+        setLogs((prev) => [...prev, `[vnc] Stream at ${event.vncUrl}`]);
+      }
+    });
+
+    const unsubEnded = ipc.onSessionEnded((event: SessionEndedEvent) => {
+      console.log('[AirlockApp] Session ended:', event.sessionId, event.reason);
+      setSession(null);
+      setVncPageUrl(undefined);
       setAppState('idle');
-      cleanup();
-      return;
-    }
+      setLogs([]);
+      setUrlInput('');
+    });
 
-    try {
-      const request: CreateUrlContainerRequest = {
-        url,
-        name: `airlock-url-${url.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20)}`,
-      };
-
-      const newSession = await ipc.createUrlContainer(request);
-      setSession(newSession);
-      // Session started event will transition to 'active'
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(message);
+    const unsubError = ipc.onSessionError((event: SessionErrorEvent) => {
+      console.error('[AirlockApp] Session error:', event.sessionId, event.error);
+      setError(event.error);
       setAppState('idle');
-      setLogs((prev) => [...prev, `[err] ${message}`]);
-    } finally {
-      cleanup();
-    }
-  }, []);
+    });
+
+    const unsubOpenFile = ipc.onOpenFile((filePath: string) => {
+      void handleFilePath(filePath);
+    });
+
+    return () => {
+      unsubStarted();
+      unsubEnded();
+      unsubError();
+      unsubOpenFile();
+    };
+  }, [handleFilePath]);
 
   const handleDestroyWorkspace = useCallback(async () => {
     if (!session || !ipc) return;
@@ -158,12 +150,11 @@ export default function AirlockApp() {
     try {
       setLogs((prev) => [...prev, `[sys] Destroying workspace ${session.name}...`]);
       await ipc.destroyContainer(session.id);
-      // Session ended event will clean up state
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setLogs((prev) => [...prev, `[err] ${message}`]);
-      // Force local cleanup if IPC fails
       setSession(null);
+      setVncPageUrl(undefined);
       setAppState('idle');
       setUrlInput('');
     }
@@ -195,29 +186,7 @@ export default function AirlockApp() {
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (urlInput.trim()) {
-      void handleUrlSubmit(urlInput.trim());
-    }
   };
-
-  // --- Canvas Placeholder Render ---
-  useEffect(() => {
-    if (appState === 'active' && canvasRef.current) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = '#12151A'; // surface-1
-        ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-        ctx.fillStyle = '#23272F'; // line
-        ctx.font = '13px "JetBrains Mono", monospace';
-        ctx.fillText('kasm-stream initialized. Awaiting X11 frames...', 20, 30);
-
-        if (session) {
-          ctx.fillText(`Session: ${session.name}`, 20, 50);
-          ctx.fillText(`ID: ${session.id.slice(0, 12)}...`, 20, 70);
-        }
-      }
-    }
-  }, [appState, session]);
 
   return (
     <div className="min-h-screen w-full bg-[#08090B] text-[#ECEFF3] font-sans overflow-hidden flex flex-col selection:bg-[#3DE8D4]/20 selection:text-[#04201D]">
@@ -331,26 +300,23 @@ export default function AirlockApp() {
                 )}
               </div>
 
-              {/* URL Input Bar */}
-              <form onSubmit={handleFormSubmit} className="relative group">
+              {/* URL input deferred to v0.2.0 (requires network opt-in) */}
+              <form onSubmit={handleFormSubmit} className="relative group opacity-50 pointer-events-none">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Link
-                    size={16}
-                    className="text-[#6E7782] group-focus-within:text-[#FF6A2B] transition-colors"
-                  />
+                  <Link size={16} className="text-[#6E7782]" />
                 </div>
                 <input
                   type="url"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
-                  placeholder="Or paste an untrusted URL..."
-                  disabled={!ipc}
-                  className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58] focus:outline-none focus:border-[#FF6A2B] focus:ring-1 focus:ring-[#FF6A2B]/30 transition-all shadow-[inset_0_1px_0_rgba(255,255,255,0.03),_0_1px_2px_rgba(0,0,0,0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="URL sessions — v0.2.0"
+                  disabled
+                  className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58]"
                 />
                 <button
                   type="submit"
-                  disabled={!urlInput || !ipc}
-                  className="absolute inset-y-1 right-1 px-4 bg-[#FF6A2B] hover:bg-[#FF7A36] disabled:bg-[#333944] disabled:text-[#6E7782] text-[#1A0A02] text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2 transition-colors duration-150"
+                  disabled
+                  className="absolute inset-y-1 right-1 px-4 bg-[#333944] text-[#6E7782] text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2"
                 >
                   <Zap size={14} />
                   Detonate
@@ -436,26 +402,13 @@ export default function AirlockApp() {
                 </div>
               </div>
 
-              {/* Canvas Rendering the VNC Feed */}
-              <div className="flex-1 relative bg-[#08090B]">
-                <canvas
-                  ref={canvasRef}
-                  id="kasm-stream"
-                  width={1024}
-                  height={768}
-                  className="w-full h-full object-contain"
+              {/* KasmVNC stream */}
+              <div className="flex-1 relative bg-[#08090B] min-h-0">
+                <VncViewer
+                  vncPageUrl={vncPageUrl ?? session?.vncPageUrl}
+                  vncUrl={session?.vncUrl}
+                  sessionName={session?.name}
                 />
-                {/* VNC placeholder text overlay */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  <div className="text-center">
-                    <p className="font-mono text-[13px] text-[#7E8B9A] mb-2">
-                      KasmVNC WebSocket Feed
-                    </p>
-                    <p className="font-mono text-[11px] text-[#474E58]">
-                      {session ? `Session: ${session.id.slice(0, 12)}` : 'Initializing...'}
-                    </p>
-                  </div>
-                </div>
               </div>
             </motion.div>
           )}

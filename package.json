@@ -5,8 +5,8 @@
   "engines": { "node": ">=20", "pnpm": ">=9" },
   "scripts": {
     "dev": "pnpm --parallel -r dev",
-    "build": "pnpm -r build",
-    "typecheck": "pnpm --filter @airlock/core typecheck",
+    "build": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build",
+    "typecheck": "pnpm --filter @airlock/core typecheck && pnpm --filter @airlock/ui typecheck",
     "lint": "eslint packages/core/src packages/ui/src --ext .ts,.tsx --ignore-pattern '**/_ref/**'",
     "lint:fix": "eslint packages/*/src --ext .ts,.tsx --fix --ignore-pattern '**/_ref/**'",
     "format": "prettier --write 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
