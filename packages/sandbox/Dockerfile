@@ -292,6 +292,7 @@ RUN mkdir -p \
     /home/airlock/.vnc \
     /home/airlock/.config/openbox \
     /home/airlock/workspace \
+    /home/airlock/workspace/input \
     /home/airlock/Downloads \
     /tmp/.X11-unix \
     /var/log/supervisor \

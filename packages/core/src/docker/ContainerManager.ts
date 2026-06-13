@@ -2,7 +2,8 @@
  * ContainerManager — dockerode lifecycle manager for Airlock
  *
  * Derived from Dangerzone's isolation_provider/container.py security model:
- * - NetworkMode: 'none' (air-gapped)
+ * - Internal bridge network when VNC is published (no external egress)
+ * - NetworkMode: 'none' when no VNC port is needed
  * - CapDrop: ['ALL'] (drop all capabilities)
  * - SecurityOpt: ['no-new-privileges', 'seccomp=<profile>']
  * - Read-only bind mounts for input files
@@ -13,6 +14,7 @@
  */
 
 import Dockerode from 'dockerode';
+import { ensureIsolatedNetwork } from './network.js';
 import { serializeSeccompProfile } from './seccomp.js';
 
 // Lazily loaded dockerode to avoid side effects at module load time
@@ -206,9 +208,10 @@ function getSeccompSecurityOpt(): string {
   return `seccomp=${profilePath}`;
 }
 
-function resolveVncUrls(
-  info: Dockerode.ContainerInspectInfo,
-): { vncUrl?: string; vncPageUrl?: string } {
+function resolveVncUrls(info: Dockerode.ContainerInspectInfo): {
+  vncUrl?: string;
+  vncPageUrl?: string;
+} {
   const bindings = info.NetworkSettings.Ports?.[VNC_CONTAINER_PORT];
   const hostPort = bindings?.[0]?.HostPort;
   if (!hostPort) {
@@ -220,11 +223,40 @@ function resolveVncUrls(
   return { vncUrl, vncPageUrl };
 }
 
+async function waitForVncReady(
+  container: Dockerode.Container,
+  timeoutMs = 15000,
+): Promise<{ vncUrl?: string; vncPageUrl?: string }> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    const info = await container.inspect();
+    const urls = resolveVncUrls(info);
+
+    if (urls.vncUrl) {
+      try {
+        const response = await fetch(urls.vncUrl);
+        if (response.ok) {
+          return urls;
+        }
+      } catch {
+        // KasmVNC not accepting connections yet
+      }
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+
+  const info = await container.inspect();
+  return resolveVncUrls(info);
+}
+
 /**
  * Build the Docker HostConfig with full security hardening.
  */
 function buildHostConfig(
   config: AirlockContainerConfig,
+  networkMode: string,
 ): Dockerode.ContainerCreateOptions['HostConfig'] {
   const binds: string[] = (config.mounts ?? []).map((m) => {
     const roFlag = m.readOnly ? ':ro' : '';
@@ -239,7 +271,7 @@ function buildHostConfig(
   const securityOpt: string[] = ['no-new-privileges', getSeccompSecurityOpt()];
 
   const hostConfig: Dockerode.ContainerCreateOptions['HostConfig'] = {
-    NetworkMode: 'none',
+    NetworkMode: networkMode,
     CapDrop: ['ALL'],
     SecurityOpt: securityOpt,
     Binds: binds,
@@ -275,7 +307,8 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     envArray.push('RUNSC_DEBUG=1');
   }
 
-  const hostConfig = buildHostConfig(config);
+  const networkMode = config.publishVnc ? await ensureIsolatedNetwork(docker) : 'none';
+  const hostConfig = buildHostConfig(config, networkMode);
 
   const createOptions: Dockerode.ContainerCreateOptions = {
     Image: config.image,
@@ -307,8 +340,11 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
   const container = await docker.createContainer(createOptions);
   await container.start();
 
+  const { vncUrl, vncPageUrl } = config.publishVnc
+    ? await waitForVncReady(container)
+    : resolveVncUrls(await container.inspect());
+
   const info = await container.inspect();
-  const { vncUrl, vncPageUrl } = resolveVncUrls(info);
 
   const session: ContainerSession = {
     id: info.Id,
@@ -395,7 +431,7 @@ export async function isContainerRunning(sessionId: string): Promise<boolean> {
   }
 }
 
-const INPUT_MOUNT_DIR = '/workspace/input';
+const INPUT_MOUNT_DIR = '/home/airlock/workspace/input';
 
 /**
  * Create a container for opening a file in the sandbox.
