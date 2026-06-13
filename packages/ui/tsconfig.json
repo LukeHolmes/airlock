@@ -19,10 +19,10 @@
     "types": ["node", "react", "react-dom"],
     "baseUrl": ".",
     "paths": {
-      "@airlock/core": ["../core/src"],
       "@/*": ["./src/*"]
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["dist", "node_modules", "**/_ref/**"]
+  "exclude": ["dist", "node_modules", "**/_ref/**"],
+  "references": [{ "path": "../core" }]
 }
