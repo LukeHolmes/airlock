@@ -16,6 +16,7 @@ export {
   createFileContainer,
   createUrlContainer,
   type AirlockContainerConfig,
+  type ContainerSession,
 } from './ContainerManager.js';
 
 export {

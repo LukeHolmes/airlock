@@ -5,7 +5,7 @@
  * All container operations are proxied to the main process.
  */
 
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
   IPC_CHANNELS,
   type AirlockIpcApi,
@@ -86,6 +86,26 @@ async function getVersion(): Promise<string> {
   return ipcRenderer.invoke(IPC_CHANNELS.GET_VERSION);
 }
 
+function onOpenFile(callback: (filePath: string) => void): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
+    callback(filePath);
+  };
+  ipcRenderer.on('airlock:open-file', handler);
+  return () => {
+    ipcRenderer.removeListener('airlock:open-file', handler);
+  };
+}
+
+function onOpenUrl(callback: (url: string) => void): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, url: string) => {
+    callback(url);
+  };
+  ipcRenderer.on('airlock:open-url', handler);
+  return () => {
+    ipcRenderer.removeListener('airlock:open-url', handler);
+  };
+}
+
 // Expose API to renderer
 
 const airlockApi: AirlockIpcApi = {
@@ -100,6 +120,9 @@ const airlockApi: AirlockIpcApi = {
   onSessionError,
   installCrashTrap,
   getVersion,
+  getPathForFile: (file: File) => webUtils.getPathForFile(file),
+  onOpenFile,
+  onOpenUrl,
 };
 
 contextBridge.exposeInMainWorld('airlock', airlockApi);
