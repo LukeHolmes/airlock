@@ -1,0 +1,406 @@
+AIRLOCK PROJECT — FULL CHAT TRANSCRIPT FOR CHATGPT
+====================================================
+Export date: 2026-06-13
+Repository: LukeHolmes/airlock
+Workspace: airlock monorepo (Electron + Docker + KasmVNC sandbox)
+
+Copy everything below this line into ChatGPT for context.
+
+
+================================================================================
+CONVERSATION OVERVIEW
+================================================================================
+
+This chat covers the v0.1.1 "make it run" effort for Airlock — a local-first,
+disposable sandboxed workspace. Stack: Electron UI, @airlock/core (dockerode),
+packages/sandbox Docker image with KasmVNC.
+
+End state of chat:
+- PR #7 open (draft): cursor/v0-1-1-qa-fixes-fb59
+- All automated checks pass in cloud VM with Docker
+- Manual macOS Electron E2E not yet done
+- v0.2.0 deferred: network egress, URL sessions, LibreOffice
+
+
+================================================================================
+USER MESSAGE 1
+================================================================================
+
+(Audit request — from earlier in conversation, summarized)
+
+Audit branch cursor/v0-1-1-make-it-run-fb59 for v0.1.1 validation. Report only,
+no fixes.
+
+
+================================================================================
+ASSISTANT RESPONSE 1 (AUDIT SUMMARY)
+================================================================================
+
+Performed validation audit on branch cursor/v0-1-1-make-it-run-fb59. Key findings:
+
+PASSED:
+- pnpm typecheck
+- pnpm lint  
+- pnpm build
+- Electron reaches [main] Ready
+
+FAILED / BLOCKERS:
+- pnpm format:check on AirlockApp.tsx (Prettier)
+- Sandbox image not auto-built — user must manually docker build
+- No live Docker integration test in CI for ContainerManager path
+- Alpine Dockerfile referenced missing packages (obconf, lxappearance, etc.)
+- KasmVNC startup issues — separate Xvfb + vncserver conflicts; vncserver
+  Perl wrapper hangs on interactive prompts in containers
+- Internal Docker networks (Internal: true) prevent port publishing to host —
+  VNC unreachable
+
+CRITICAL BUGS IDENTIFIED (C1–C4):
+- C1: @airlock/core package.json pointed main/exports to src instead of dist —
+  Electron runtime module resolution failed
+- C2: Sandbox network mode blocked VNC port publish
+- C3: entrypoint.sh double-booted supervisord
+- C4: File mount path mismatch between host and container
+
+
+================================================================================
+USER MESSAGE 2
+================================================================================
+
+Create an implementation plan to fix critical bugs C1–C4.
+
+
+================================================================================
+ASSISTANT RESPONSE 2 (PLAN SUMMARY)
+================================================================================
+
+Proposed two PRs:
+
+PR1 — Core runtime + UI typecheck (C1):
+- packages/core/package.json: main/exports → dist/index.js
+- packages/ui/tsconfig.json: remove @airlock/core → ../core/src path alias
+- packages/ui/package.json: prestart/electron:dev build core first
+
+PR2 — Sandbox boot contract (C2–C4):
+- packages/core/src/docker/network.ts: ensureIsolatedNetwork()
+- ContainerManager.ts: internal bridge for VNC, waitForVncReady(), mount path fix
+- entrypoint.sh: thin supervisord handoff (no double-boot)
+- supervisord.conf, Dockerfile, CI, README updates
+
+
+================================================================================
+USER MESSAGE 3
+================================================================================
+
+Implement PR1 — Fix @airlock/core runtime resolution + UI typecheck.
+
+
+================================================================================
+ASSISTANT RESPONSE 3
+================================================================================
+
+Implemented on branch cursor/fix-core-runtime-fb59 (PR #5):
+
+Changes:
+- packages/core/package.json — main/exports → dist/index.js
+- packages/ui/tsconfig.json — removed path alias, added project reference
+- packages/ui/package.json — prestart / electron:dev build core first
+
+Verified: Electron reaches [main] Ready; pnpm typecheck passes.
+PR #5 created and later merged.
+
+
+================================================================================
+USER MESSAGE 4
+================================================================================
+
+Implement PR2 — Fix sandbox network, entrypoint double-boot, mount path (C2–C4).
+
+
+================================================================================
+ASSISTANT RESPONSE 4
+================================================================================
+
+Implemented on branch cursor/fix-sandbox-boot-fb59 (PR #6):
+
+Changes:
+- packages/core/src/docker/network.ts — ensureIsolatedNetwork()
+- ContainerManager.ts — bridge network for VNC, waitForVncReady(), mount path fix
+- entrypoint.sh — thin supervisord handoff
+- supervisord.conf, Dockerfile, CI, README updates
+
+
+================================================================================
+USER MESSAGE 5
+================================================================================
+
+Merge PRs and run full QA review.
+
+
+================================================================================
+ASSISTANT RESPONSE 5
+================================================================================
+
+Merged PR #5 + #6 into cursor/v0-1-1-make-it-run-fb59 at commit cf09a9e.
+
+QA Review post-merge:
+PASS: typecheck, lint, build, Electron startup
+FAIL: pnpm format:check on AirlockApp.tsx (later fixed)
+BLOCKERS: missing sandbox image auto-build, no live Docker test, Alpine package
+issues, KasmVNC startup problems
+
+
+================================================================================
+USER MESSAGE 6
+================================================================================
+
+Set up a docker for you to test.
+
+Fix remaining issues first
+
+
+================================================================================
+ASSISTANT RESPONSE 6 (QA FIXES — DETAILED)
+================================================================================
+
+Created branch: cursor/v0-1-1-qa-fixes-fb59
+
+DOCKER SETUP:
+- Started dockerd manually (no systemd in VM)
+- Fixed socket permissions: sudo chmod 666 /var/run/docker.sock
+- Do NOT start dockerd with --bridge=none — breaks image builds
+
+QA FIXES APPLIED:
+
+| Fix | Files |
+|-----|-------|
+| Prettier + setAppState('active') on success | packages/ui/src/renderer/AirlockApp.tsx |
+| Electron VNC iframe headers | packages/ui/src/main/index.ts |
+| Image-missing error | ContainerManager.ts — ensureImageExists() |
+| Alpine chromium-browser symlink | packages/sandbox/Dockerfile |
+| cleanup.sh BusyBox-safe (no grep -P) | packages/sandbox/cleanup.sh |
+| Smoke scripts | scripts/sandbox-smoke.sh, scripts/core-smoke.mjs, etc. |
+| Root scripts | package.json — sandbox:build, sandbox:smoke, core:smoke |
+| README Quick Start | README.md |
+
+KASMVNC ARCHITECTURE (critical discoveries):
+
+1. Separate Xvfb + vncserver :1 conflicts — display already taken
+2. vncserver Perl wrapper hangs — interactive prompts in containers
+3. Working approach: Direct /usr/bin/Xvnc via start-kasmvnc.sh:
+
+   exec /usr/bin/Xvnc :1 -geometry 1920x1080 -depth 24 \
+     -interface 0.0.0.0 -WebsocketPort 6901 \
+     -httpd /usr/share/kasmvnc/www -disableBasicAuth -SecurityTypes None
+
+   Do NOT pass -MaxFrameRate, -PreferBandwidth, etc. — Xvnc 1.3.4 rejects them.
+
+4. supervisord.conf — removed [program:xvfb]; only kasmvnc, openbox, target-launcher
+
+NETWORK / PORT PUBLISHING:
+- Internal: true networks → NetworkSettings.Ports stays {}; publish fails
+- Fix: network.ts changed to Internal: false on dedicated bridge airlock-isolated
+- Port publish works; egress not fully blocked (documented as v0.2.0)
+- Smoke script recreates internal networks if found
+
+ADDITIONAL FIXES (during Docker test session):
+
+1. ESM require() fix in ContainerManager.ts:
+   - Was: require('path'), require('fs'), require('child_process'), require('os')
+   - Fixed: top-level import from node:path, node:fs, node:child_process
+   - core:smoke failed with "ReferenceError: require is not defined"
+
+2. Seccomp profile fix:
+   - File path form seccomp=/tmp/airlock-seccomp.json failed via dockerode
+   - Error: "Decoding seccomp profile failed: invalid character '/' looking for
+     beginning of value"
+   - Fix: Pass profile inline: seccomp=${serializeSeccompProfile()}
+
+3. Cgroup v2 fix:
+   - Memory/CpuQuota/CpuPeriod limits caused:
+     "cannot enter cgroupv2 /sys/fs/cgroup/docker with domain controllers --
+     it is in threaded mode"
+   - Fix: Removed Memory, MemorySwap, CpuQuota, CpuPeriod from HostConfig
+
+FINAL TEST RESULTS:
+
+| Test | Result |
+|------|--------|
+| pnpm format:check | PASS |
+| pnpm typecheck | PASS |
+| pnpm lint | PASS |
+| pnpm build | PASS |
+| pnpm sandbox:build | PASS |
+| bash scripts/sandbox-smoke.sh | PASS |
+| pnpm core:smoke | PASS |
+
+Commit: 34f4220 on cursor/v0-1-1-qa-fixes-fb59
+Draft PR #7: https://github.com/LukeHolmes/airlock/pull/7
+
+KNOWN LIMITATIONS (v0.1.1):
+- Network egress not fully blocked (Internal: false required for port publish)
+- KasmVNC package is 1.3.4 in container (Dockerfile references 1.4.1 APK)
+- ffmpeg: Could not open libswscale.so warning in Xvnc logs (non-fatal)
+- Manual smoke test on macOS with Electron GUI not done in VM
+- Memory/CPU cgroup limits removed for compatibility
+
+
+================================================================================
+KEY FILE PATHS
+================================================================================
+
+packages/core/src/docker/ContainerManager.ts
+packages/core/src/docker/network.ts
+packages/core/src/docker/seccomp.ts
+packages/core/package.json
+packages/ui/src/main/index.ts
+packages/ui/src/renderer/AirlockApp.tsx
+packages/sandbox/Dockerfile
+packages/sandbox/entrypoint.sh
+packages/sandbox/supervisord.conf
+packages/sandbox/start-kasmvnc.sh      (NEW)
+packages/sandbox/launch-target.sh
+packages/sandbox/cleanup.sh
+scripts/sandbox-smoke.sh
+scripts/core-smoke.mjs
+scripts/register-core.mjs
+scripts/resolve-core.mjs
+.github/workflows/ci.yml
+README.md
+
+
+================================================================================
+BRANCH / PR STATE AT END OF SESSION
+================================================================================
+
+Branches:
+- main — base, not yet containing v0.1.1 work
+- cursor/v0-1-1-make-it-run-fb59 @ cf09a9e — merged PR #5 + #6
+- cursor/v0-1-1-qa-fixes-fb59 @ 34f4220 — QA fixes (5 commits ahead of main)
+
+PRs:
+- PR #5 — merged (core runtime fix)
+- PR #6 — sandbox boot fix (may still be open on GitHub)
+- PR #7 — draft QA fixes: fix(v0.1.1): QA blockers — KasmVNC boot, seccomp, smoke tests
+
+
+================================================================================
+USER MESSAGE 7
+================================================================================
+
+Ok what's the next plan?
+
+
+================================================================================
+ASSISTANT RESPONSE 7
+================================================================================
+
+WHERE THINGS STAND:
+- PR #7 has v0.1.1 fixes; automated checks pass in cloud VM
+- Not done: merge to main, manual workstation E2E, README/status updates
+
+PHASE 1 — SHIP v0.1.1 (recommended next):
+1. Merge PR #7 → main
+2. Manual E2E on your machine (Electron + Docker Desktop)
+3. Fix anything that breaks on macOS
+4. Update README (stale checklist; network section inaccurate)
+5. Tag v0.1.1
+
+Manual E2E checklist:
+  pnpm install && pnpm build && pnpm sandbox:build
+  cd packages/ui && pnpm start
+  - Drop PDF → VNC stream appears
+  - Evince opens file in sandbox
+  - Destroy workspace kills container
+  - Force-quit Electron → no orphaned airlock-* containers
+
+PHASE 2 — CI HARDENING:
+- Add pnpm core:smoke to CI
+- Align CI docker job with smoke script
+- Optional: auto-build sandbox image on first session
+
+PHASE 3 — v0.2.0:
+1. Network egress policy (real air-gap + VNC port publish)
+2. URL sessions (UI placeholder exists; needs network opt-in)
+3. Resource limits (re-add with cgroup detection)
+4. LibreOffice / .docx (README mentions it; not in Dockerfile yet)
+
+Priority: Phase 1 first — manual E2E on Mac is the real gate for v0.1.1.
+
+
+================================================================================
+USER MESSAGE 8
+================================================================================
+
+Give me a file of this entire chat in a copy and paste format for chatgpt
+
+
+================================================================================
+ASSISTANT RESPONSE 8
+================================================================================
+
+(This file — airlock-chat-transcript-for-chatgpt.txt)
+
+
+================================================================================
+TECHNICAL REFERENCE — CONTAINERMANAGER SECCOMP FIX
+================================================================================
+
+Before (broken via dockerode):
+  function getSeccompSecurityOpt(): string {
+    const profileJson = serializeSeccompProfile();
+    const profilePath = path.join(os.tmpdir(), 'airlock-seccomp.json');
+    fs.writeFileSync(profilePath, profileJson);
+    return `seccomp=${profilePath}`;
+  }
+
+After (working):
+  function getSeccompSecurityOpt(): string {
+    return `seccomp=${serializeSeccompProfile()}`;
+  }
+
+
+================================================================================
+TECHNICAL REFERENCE — start-kasmvnc.sh
+================================================================================
+
+Direct Xvnc launcher (replaces vncserver wrapper):
+
+  exec /usr/bin/Xvnc :1 -geometry 1920x1080 -depth 24 \
+    -interface 0.0.0.0 -WebsocketPort 6901 \
+    -httpd /usr/share/kasmvnc/www -disableBasicAuth -SecurityTypes None
+
+
+================================================================================
+TECHNICAL REFERENCE — SMOKE COMMANDS
+================================================================================
+
+  pnpm install
+  pnpm build
+  pnpm sandbox:build
+  bash scripts/sandbox-smoke.sh
+  pnpm core:smoke
+  cd packages/ui && pnpm start
+
+
+================================================================================
+PRODUCT CONTEXT (from README)
+================================================================================
+
+Airlock: local-first disposable sandboxed workspace.
+- User drops file → ephemeral Docker container with KasmVNC desktop
+- File opened in sandboxed app (Chromium, Evince, etc.)
+- VNC streamed to Electron window
+- Container destroyed on session end
+- Air-gapped by default (v0.2.0 for full egress block)
+- Violent GC on Electron crash (docker kill all session containers)
+- Read-only file mounts
+
+Monorepo:
+  packages/ui     — Electron + React
+  packages/core   — dockerode orchestrator
+  packages/sandbox — Docker image (Alpine + KasmVNC + Openbox)
+
+
+================================================================================
+END OF TRANSCRIPT
+================================================================================

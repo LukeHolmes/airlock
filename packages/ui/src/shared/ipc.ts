@@ -49,8 +49,10 @@ export interface ContainerSession {
   createdAt: string;
   config: {
     image: string;
-    cmd: string[];
+    cmd?: string[];
   };
+  vncUrl?: string;
+  vncPageUrl?: string;
 }
 
 export interface ContainerStatus {
@@ -92,6 +94,13 @@ export interface AirlockIpcApi {
   // System
   installCrashTrap(): Promise<void>;
   getVersion(): Promise<string>;
+
+  // File path resolution (Electron webUtils)
+  getPathForFile(file: File): string;
+
+  // Host file/URL open events (dock icon, CLI)
+  onOpenFile(callback: (filePath: string) => void): () => void;
+  onOpenUrl(callback: (url: string) => void): () => void;
 }
 
 // Extend Window interface for TypeScript

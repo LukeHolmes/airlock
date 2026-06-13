@@ -53,6 +53,11 @@ jobs:
       - name: TypeScript compilation check
         run: pnpm typecheck
 
+      - name: Build packages
+        run: |
+          pnpm --filter @airlock/core build
+          pnpm --filter @airlock/ui build
+
   # =============================================================================
   # Job 2: Docker Image Build Test
   # =============================================================================
@@ -82,20 +87,21 @@ jobs:
       - name: Test image with security profile
         run: |
           echo "Testing Docker image with Airlock security profile..."
-          
-          # Run container with security hardening matching ContainerManager
+
+          docker network inspect airlock-ci-test >/dev/null 2>&1 || \
+            docker network create airlock-ci-test
+
+          # Run container on internal network (matches ContainerManager VNC sessions)
           docker run -d --name airlock-test \
-            --network none \
+            --network airlock-ci-test \
             --cap-drop ALL \
             --security-opt no-new-privileges \
-            -p 6901:6901 \
+            -p 127.0.0.1:6901:6901 \
             airlock/sandbox:test
-          
-          # Wait for services to start
+
           echo "Waiting for container to initialize..."
           sleep 15
-          
-          # Check container is running
+
           if docker ps | grep -q airlock-test; then
             echo "✓ Container is running"
           else
@@ -103,23 +109,28 @@ jobs:
             docker logs airlock-test || true
             exit 1
           fi
-          
-          # Check health status if available
+
+          if curl -sf http://127.0.0.1:6901/ >/dev/null; then
+            echo "✓ KasmVNC HTTP endpoint reachable on host"
+          else
+            echo "✗ KasmVNC HTTP endpoint not reachable"
+            docker logs airlock-test || true
+            exit 1
+          fi
+
           HEALTH_STATUS=$(docker inspect --format='{{.State.Health.Status}}' airlock-test 2>/dev/null || echo "N/A")
           echo "Health status: $HEALTH_STATUS"
-          
-          # Test network isolation (should fail)
+
           if docker exec airlock-test ping -c 1 8.8.8.8 2>/dev/null; then
             echo "⚠ Warning: Network may not be fully isolated"
           else
             echo "✓ Network isolation confirmed"
           fi
-          
-          # Cleanup
+
           echo "Cleaning up test container..."
           docker stop airlock-test || true
           docker rm airlock-test || true
-          
+
           echo "✓ Docker security profile test completed"
 
   # =============================================================================

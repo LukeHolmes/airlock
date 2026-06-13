@@ -2,7 +2,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist/preload",
-    "rootDir": "./src/preload",
+    "rootDir": "./src",
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "jsx": "preserve",

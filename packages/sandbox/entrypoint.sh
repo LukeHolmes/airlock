@@ -6,7 +6,7 @@
 # inside an isolated, air-gapped container environment.
 #
 # Environment Variables (set by ContainerManager or defaults):
-#   TARGET_FILE       - Path to file to open (e.g., /workspace/target.pdf)
+#   TARGET_FILE       - Path to file to open (e.g., /home/airlock/workspace/input/target.pdf)
 #   TARGET_URL        - URL to open (e.g., https://example.com)
 #   VNC_PORT          - KasmVNC WebSocket port (default: 6901)
 #   VNC_RESOLUTION    - Display resolution (default: 1920x1080)
@@ -100,7 +100,6 @@ start_x11() {
         +extension GLX \
         +render \
         -noreset \
-        -novtswitch \
         > /tmp/Xvfb.log 2>&1 &
     
     local xvfb_pid=$!
@@ -129,8 +128,8 @@ start_x11() {
 start_kasmvnc() {
     log_info "Starting KasmVNC on port ${VNC_PORT}..."
     
-    # Build geometry string
-    local geometry="${VNC_RESOLUTION}x${VNC_COL_DEPTH}"
+    # Build geometry string (width x height; depth is a separate flag)
+    local geometry="${VNC_RESOLUTION}"
     
     # Start KasmVNC server
     # Key options for Airlock:
@@ -339,10 +338,14 @@ main() {
         log_warn "Running as root! This should not happen."
     fi
     
-    # Setup security
     setup_vnc_security
-    
-    # Start core services
+
+    # Production path: supervisord manages X11, KasmVNC, and the target launcher
+    if [[ "${1:-}" == "supervisord" ]]; then
+        exec "$@"
+    fi
+
+    # Standalone/debug path (docker run without supervisord CMD)
     if ! start_x11; then
         log_error "Failed to start X11, aborting"
         exit 1
@@ -353,32 +356,18 @@ main() {
         exit 1
     fi
     
-    # Start window manager
     start_window_manager
-    
-    # Allow desktop to settle
     sleep 1
-    
-    # Launch target application
     launch_target
     
     log_info "=========================================="
-    log_info "Sandbox ready"
+    log_info "Sandbox ready (standalone mode)"
     log_info "Connect via WebSocket on port ${VNC_PORT}"
     log_info "=========================================="
     
-    # Keep script running to maintain signal handling
-    # In supervisor mode, this is handled by supervisord
-    # In standalone mode, we wait
-    if [[ "${1:-}" == "supervisord" ]]; then
-        # Supervisor mode: exec to replace this process
-        exec "$@"
-    else
-        # Standalone mode: wait forever
-        while true; do
-            sleep 1
-        done
-    fi
+    while true; do
+        sleep 1
+    done
 }
 
 # Run main if not being sourced

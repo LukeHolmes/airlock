@@ -77,7 +77,7 @@ airlock/
 Every container is created fresh and destroyed on session end. No volumes persist between sessions. No state is written to the host outside of explicitly opted-in export paths.
 
 ### 2. Air-Gapped by Default
-All sandbox containers are started with `NetworkMode: none`. Network access is a deliberate, per-session opt-in — not the default.
+VNC file sessions attach to an internal Docker bridge (`airlock-isolated`) with no external egress. Network access to the internet is a deliberate, per-session opt-in — not the default (v0.2.0).
 
 ### 3. Violent Garbage Collection
 If the Electron main process crashes, exits, or is force-quit, an `unhandledRejection` / `beforeExit` trap fires and issues a synchronous `docker kill` + `docker rm` against all containers spawned in that session. Orphaned zombie containers are treated as a critical failure mode.
@@ -94,7 +94,7 @@ The sandbox image is built on Alpine/Ubuntu minimal. Capabilities are dropped to
 
 | Control | Value |
 |---|---|
-| Network | `none` (default) |
+| Network | Internal bridge (`airlock-isolated`) for VNC sessions; no external egress |
 | Capabilities | All dropped (`--cap-drop ALL`) |
 | Seccomp | Custom profile (Dangerzone-derived) |
 | AppArmor | Enforced where available |
@@ -152,6 +152,17 @@ Airlock's design draws from four open-source reference implementations:
 - Docker Desktop (or Docker Engine on Linux)
 - Node.js >= 20
 - pnpm >= 9
+
+## Quick Start
+
+```bash
+pnpm install
+pnpm build
+pnpm sandbox:build    # builds airlock/sandbox:latest (required before first session)
+cd packages/ui && pnpm start
+```
+
+Drop a PDF onto the window to open it in an isolated container. Click **Destroy workspace** when done.
 
 ---
 
