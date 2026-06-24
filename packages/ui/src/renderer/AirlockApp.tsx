@@ -328,11 +328,48 @@ export default function AirlockApp() {
 
       {analysisResult && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-30 p-4">
-          <div className="bg-[#12151A] border border-[#23272F] rounded-[8px] p-4 max-w-lg w-full">
-            <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-3">Analysis Result</h3>
-            <pre className="text-[12px] font-mono text-[#AAB3BE] overflow-auto max-h-64 mb-4">
-              {JSON.stringify(analysisResult, null, 2)}
-            </pre>
+          <div className="bg-[#12151A] border border-[#23272F] rounded-[8px] p-4 max-w-lg w-full max-h-[80vh] overflow-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-[15px] font-semibold text-[#ECEFF3]">Session Analysis</h3>
+              <span
+                className={`px-2 py-0.5 rounded text-[11px] font-mono uppercase ${
+                  analysisResult.analysis.riskLevel === 'low'
+                    ? 'bg-[#3DE8D4]/15 text-[#3DE8D4] border border-[#3DE8D4]/30'
+                    : analysisResult.analysis.riskLevel === 'medium'
+                      ? 'bg-[#FF6A2B]/15 text-[#FF6A2B] border border-[#FF6A2B]/30'
+                      : 'bg-[#F23D3D]/15 text-[#F23D3D] border border-[#F23D3D]/30'
+                }`}
+              >
+                {analysisResult.analysis.riskLevel} risk
+              </span>
+            </div>
+
+            <p className="text-[13px] text-[#AAB3BE] mb-4 leading-relaxed">
+              {analysisResult.analysis.summary}
+            </p>
+
+            <div className="mb-4">
+              <h4 className="text-[12px] font-mono text-[#7E8B9A] uppercase mb-2">Observations</h4>
+              <ul className="text-[12px] text-[#AAB3BE] space-y-1 list-disc list-inside">
+                {analysisResult.analysis.observations.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mb-4">
+              <h4 className="text-[12px] font-mono text-[#7E8B9A] uppercase mb-2">Signals</h4>
+              <ul className="text-[12px] text-[#AAB3BE] space-y-1 list-disc list-inside">
+                {analysisResult.analysis.signals.map((item, i) => (
+                  <li key={i}>{item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <p className="text-[13px] text-[#ECEFF3] mb-4 border-t border-[#23272F] pt-3">
+              {analysisResult.analysis.recommendation}
+            </p>
+
             <button
               type="button"
               onClick={() => setAnalysisResult(null)}

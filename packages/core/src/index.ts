@@ -21,4 +21,5 @@ export type {
   NetworkMode,
   SessionArtefacts,
   SessionAnalysisResult,
+  LightweightAnalysis,
 } from './session/index.js';
