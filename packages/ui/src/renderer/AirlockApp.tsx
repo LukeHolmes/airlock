@@ -5,6 +5,7 @@ import VncViewer from './VncViewer';
 import type {
   AirlockInput,
   AirlockSession,
+  SessionAnalysisResult,
   SessionStartedEvent,
   SessionEndedEvent,
   SessionErrorEvent,
@@ -37,6 +38,7 @@ export default function AirlockApp() {
   const [error, setError] = useState<string | null>(null);
   const [networkEnabled, setNetworkEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState('');
+  const [analysisResult, setAnalysisResult] = useState<SessionAnalysisResult | null>(null);
 
   const viewState = viewStateFromSession(session);
 
@@ -92,7 +94,12 @@ export default function AirlockApp() {
         sessionId: 'pending',
         containerId: '',
         status: 'starting',
-        metadata: { startTime: Date.now() },
+        metadata: {
+          startTime: Date.now(),
+          inputType: input.type,
+          networkMode:
+            input.type === 'url' ? 'enabled' : (input.networkMode ?? 'isolated'),
+        },
       });
 
       try {
@@ -182,8 +189,8 @@ export default function AirlockApp() {
       }
     });
 
-    const unsubEnded = ipc.onSessionEnded((_event: SessionEndedEvent) => {
-      setSession(null);
+    const unsubEnded = ipc.onSessionEnded((event: SessionEndedEvent) => {
+      setSession(event.session);
       setLogs([]);
       setError(null);
     });
@@ -212,7 +219,7 @@ export default function AirlockApp() {
       setLogs((prev) => [...prev, `[sys] Destroying workspace ${session.sessionId.slice(0, 12)}...`]);
       const result = await ipc.destroySession(session);
       if (result.status === 'destroyed') {
-        setSession(null);
+        setSession(result);
         setLogs([]);
       } else if (result.status === 'error') {
         setError('Failed to destroy workspace');
@@ -223,6 +230,18 @@ export default function AirlockApp() {
       setError(message);
       setSession(null);
       setLogs([]);
+    }
+  }, [session]);
+
+  const handleAnalyzeSession = useCallback(async () => {
+    if (!session || session.status !== 'destroyed' || !ipc) return;
+
+    try {
+      const result = await ipc.analyzeSession(session.sessionId);
+      setAnalysisResult(result);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
     }
   }, [session]);
 
@@ -302,6 +321,24 @@ export default function AirlockApp() {
             <span className="text-[#F23D3D] text-[13px]">{error}</span>
             <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">
               ×
+            </button>
+          </div>
+        </div>
+      )}
+
+      {analysisResult && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-30 p-4">
+          <div className="bg-[#12151A] border border-[#23272F] rounded-[8px] p-4 max-w-lg w-full">
+            <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-3">Analysis Result</h3>
+            <pre className="text-[12px] font-mono text-[#AAB3BE] overflow-auto max-h-64 mb-4">
+              {JSON.stringify(analysisResult, null, 2)}
+            </pre>
+            <button
+              type="button"
+              onClick={() => setAnalysisResult(null)}
+              className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] font-mono text-[#ECEFF3]"
+            >
+              Close
             </button>
           </div>
         </div>
@@ -405,6 +442,21 @@ export default function AirlockApp() {
                   Detonate
                 </button>
               </form>
+
+              {session?.status === 'destroyed' && (
+                <div className="flex flex-col items-center gap-3">
+                  <p className="text-[13px] text-[#AAB3BE] font-mono">
+                    Session {session.sessionId.slice(0, 12)} destroyed
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeSession}
+                    className="px-4 py-2 bg-[#181C22] border border-[#23272F] rounded-[6px] font-mono text-[12px] text-[#ECEFF3] hover:border-[#3DE8D4]/50"
+                  >
+                    Analyze Session
+                  </button>
+                </div>
+              )}
 
               {!ipc && (
                 <p className="text-[12px] text-[#F23D3D] text-center font-mono">

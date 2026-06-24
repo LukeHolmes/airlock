@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 
 import { createFileContainer, createUrlContainer, destroyContainer } from '../docker/index.js';
+import { registerSessionRecord, updateSessionRecord } from './artefacts.js';
 import { logEvent } from './logger.js';
 import type { AirlockInput, AirlockSession, NetworkMode } from './types.js';
 
@@ -9,16 +10,32 @@ function resolveNetworkMode(input: AirlockInput): NetworkMode {
   return input.networkMode ?? 'isolated';
 }
 
-function errorSession(sessionId: string, startTime: number): AirlockSession {
+function inputDescriptor(input: AirlockInput): { type: 'file' | 'url'; value: string } {
+  return input.type === 'file'
+    ? { type: 'file', value: input.filePath }
+    : { type: 'url', value: input.url };
+}
+
+function errorSession(
+  sessionId: string,
+  startTime: number,
+  inputType: 'file' | 'url',
+  networkMode: NetworkMode,
+): AirlockSession {
+  const metadata: AirlockSession['metadata'] = {
+    startTime,
+    endTime: Date.now(),
+    exitReason: 'error',
+    inputType,
+    networkMode,
+  };
+  updateSessionRecord(sessionId, metadata);
+
   return {
     sessionId,
     containerId: '',
     status: 'error',
-    metadata: {
-      startTime,
-      endTime: Date.now(),
-      exitReason: 'error',
-    },
+    metadata,
   };
 }
 
@@ -63,6 +80,15 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
   const startTime = Date.now();
   const sessionId = randomUUID();
   const networkMode = resolveNetworkMode(input);
+  const inputType = input.type;
+  const descriptor = inputDescriptor(input);
+
+  const baseMetadata: AirlockSession['metadata'] = {
+    startTime,
+    inputType,
+    networkMode,
+  };
+  registerSessionRecord(sessionId, descriptor, baseMetadata);
 
   logEvent('INPUT_RECEIVED', {
     sessionId,
@@ -82,7 +108,7 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
   const validationError = validateInput(input, networkMode);
   if (validationError) {
     logEvent('SESSION_ERROR', { sessionId, error: validationError, networkMode });
-    return errorSession(sessionId, startTime);
+    return errorSession(sessionId, startTime, inputType, networkMode);
   }
 
   try {
@@ -102,8 +128,9 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
       containerId: container.id,
       status: 'running',
       vncUrl: container.vncPageUrl ?? container.vncUrl,
-      metadata: { startTime },
+      metadata: baseMetadata,
     };
+    updateSessionRecord(sessionId, session.metadata);
 
     logEvent('SESSION_RUNNING', {
       sessionId,
@@ -116,7 +143,7 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logEvent('SESSION_ERROR', { sessionId, error: message, networkMode });
-    return errorSession(sessionId, startTime);
+    return errorSession(sessionId, startTime, inputType, networkMode);
   }
 }
 
@@ -140,6 +167,7 @@ export async function destroyAirlockSession(session: AirlockSession): Promise<Ai
         exitReason: 'user_destroy',
       },
     };
+    updateSessionRecord(session.sessionId, destroyed.metadata);
     logEvent('SESSION_DESTROYED', {
       sessionId: session.sessionId,
       containerId: session.containerId,
@@ -152,7 +180,7 @@ export async function destroyAirlockSession(session: AirlockSession): Promise<Ai
       containerId: session.containerId,
       error: message,
     });
-    return {
+    const errored: AirlockSession = {
       ...session,
       status: 'error',
       metadata: {
@@ -161,5 +189,7 @@ export async function destroyAirlockSession(session: AirlockSession): Promise<Ai
         exitReason: 'error',
       },
     };
+    updateSessionRecord(session.sessionId, errored.metadata);
+    return errored;
   }
 }

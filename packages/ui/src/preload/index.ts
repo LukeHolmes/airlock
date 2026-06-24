@@ -10,6 +10,7 @@ import {
   type AirlockIpcApi,
   type AirlockInput,
   type AirlockSession,
+  type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -21,6 +22,10 @@ async function createSession(input: AirlockInput): Promise<AirlockSession> {
 
 async function destroySession(session: AirlockSession): Promise<AirlockSession> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_DESTROY, session);
+}
+
+async function analyzeSession(sessionId: string): Promise<SessionAnalysisResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_ANALYZE, sessionId);
 }
 
 function onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void {
@@ -74,6 +79,7 @@ function onOpenFile(callback: (filePath: string) => void): () => void {
 const airlockApi: AirlockIpcApi = {
   createSession,
   destroySession,
+  analyzeSession,
   onSessionStarted,
   onSessionEnded,
   onSessionError,

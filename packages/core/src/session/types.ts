@@ -24,5 +24,7 @@ export type AirlockSession = {
     startTime: number;
     endTime?: number;
     exitReason?: 'user_destroy' | 'crash' | 'error';
+    inputType: 'file' | 'url';
+    networkMode: NetworkMode;
   };
 };
