@@ -204,6 +204,8 @@ export function violentGarbageCollect(): void {
 }
 
 function getSeccompSecurityOpt(): string {
+  // Inline JSON profile — Docker API parses seccomp= values starting with '{' as JSON.
+  // File paths are unreliable through dockerode's API encoding on some hosts.
   return `seccomp=${serializeSeccompProfile()}`;
 }
 
@@ -334,8 +336,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     createOptions.ExposedPorts = { [VNC_CONTAINER_PORT]: {} };
   }
 
-  const container = await docker.createContainer(createOptions);
-  await container.start();
+  const container = await docker.createContainer(createOptions);  await container.start();
 
   const { vncUrl, vncPageUrl } = config.publishVnc
     ? await waitForVncReady(container)

@@ -29,7 +29,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Application version
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 // Keep global reference to prevent GC
 let mainWindow: BrowserWindow | null = null;
@@ -84,7 +84,7 @@ function createMainWindow(): BrowserWindow {
       sandbox: false, // Preload needs filesystem access for dockerode
 
       // Preload script path
-      preload: path.join(__dirname, '../../preload/preload/index.js'),
+      preload: path.join(__dirname, '../../preload/preload/index.js'), // dist/main/main → dist/preload/preload
 
       // Security hardening
       webSecurity: true,
