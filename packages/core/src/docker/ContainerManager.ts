@@ -68,6 +68,8 @@ export interface AirlockContainerConfig {
   debug?: boolean;
   /** Publish KasmVNC port to a random host port on 127.0.0.1 */
   publishVnc?: boolean;
+  /** Network access mode — isolated (default) or enabled (bridge with egress) */
+  networkMode?: 'isolated' | 'enabled';
 }
 
 /**
@@ -209,6 +211,22 @@ function getSeccompSecurityOpt(): string {
   return `seccomp=${serializeSeccompProfile()}`;
 }
 
+async function resolveContainerNetworkMode(
+  docker: Dockerode,
+  config: AirlockContainerConfig,
+): Promise<string> {
+  if (config.networkMode === 'enabled') {
+    return 'bridge';
+  }
+
+  // Isolated: use the air-gapped bridge when VNC port publishing is required.
+  if (config.publishVnc) {
+    return ensureIsolatedNetwork(docker);
+  }
+
+  return 'none';
+}
+
 function resolveVncUrls(info: Dockerode.ContainerInspectInfo): {
   vncUrl?: string;
   vncPageUrl?: string;
@@ -306,7 +324,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     envArray.push('RUNSC_DEBUG=1');
   }
 
-  const networkMode = config.publishVnc ? await ensureIsolatedNetwork(docker) : 'none';
+  const networkMode = await resolveContainerNetworkMode(docker, config);
   const hostConfig = buildHostConfig(config, networkMode);
 
   const createOptions: Dockerode.ContainerCreateOptions = {
@@ -336,7 +354,8 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     createOptions.ExposedPorts = { [VNC_CONTAINER_PORT]: {} };
   }
 
-  const container = await docker.createContainer(createOptions);  await container.start();
+  const container = await docker.createContainer(createOptions);
+  await container.start();
 
   const { vncUrl, vncPageUrl } = config.publishVnc
     ? await waitForVncReady(container)
@@ -443,6 +462,7 @@ export async function createFileContainer(
     name?: string;
     image?: string;
     debug?: boolean;
+    networkMode?: 'isolated' | 'enabled';
   },
 ): Promise<ContainerSession> {
   if (!fs.existsSync(filePath)) {
@@ -475,14 +495,14 @@ export async function createFileContainer(
     },
     publishVnc: true,
     debug: options?.debug ?? false,
+    networkMode: options?.networkMode ?? 'isolated',
   });
 }
 
 /**
  * Create a container for opening a URL in the sandbox.
  *
- * Passes TARGET_URL to launch-target.sh. Network remains air-gapped by default;
- * URL fetching requires a future per-session network opt-in (v0.2.0).
+ * Passes TARGET_URL to launch-target.sh. Requires networkMode 'enabled'.
  */
 export async function createUrlContainer(
   url: string,
@@ -490,6 +510,7 @@ export async function createUrlContainer(
     name?: string;
     image?: string;
     debug?: boolean;
+    networkMode?: 'isolated' | 'enabled';
   },
 ): Promise<ContainerSession> {
   const validProtocols = ['http:', 'https:'];
@@ -513,5 +534,6 @@ export async function createUrlContainer(
     },
     publishVnc: true,
     debug: options?.debug ?? false,
+    networkMode: options?.networkMode ?? 'enabled',
   });
 }

@@ -120,7 +120,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.SESSION_CREATE,
     async (_event, input: AirlockInput): Promise<AirlockSession> => {
-      console.log(`[ipc] executeAirlockSession for ${input.filePath}`);
+      console.log(`[ipc] executeAirlockSession type=${input.type}`);
       const result = await executeAirlockSession(input);
 
       if (result.status === 'running') {
