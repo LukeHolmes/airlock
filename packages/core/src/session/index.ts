@@ -5,3 +5,5 @@ export type { SessionArtefacts } from './artefacts.js';
 export { analyzeSession } from './analyzeSession.js';
 export type { SessionAnalysisResult } from './analyzeSession.js';
 export { executeAirlockSession, destroyAirlockSession } from './executeSession.js';
+export type { LightweightAnalysis } from '../analysis/types.js';
+export { generateLightweightAnalysis } from '../analysis/lightweightAnalysis.js';

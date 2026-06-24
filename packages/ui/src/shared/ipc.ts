@@ -59,14 +59,13 @@ export type AirlockSession = {
 };
 
 export type SessionAnalysisResult = {
-  status: 'not_implemented';
-  message: string;
-  artefactsSummary: {
-    input: {
-      type: 'file' | 'url';
-      value: string;
-    };
-    eventCount: number;
+  sessionId: string;
+  analysis: {
+    summary: string;
+    riskLevel: 'low' | 'medium' | 'high';
+    observations: string[];
+    signals: string[];
+    recommendation: string;
   };
 };
 
