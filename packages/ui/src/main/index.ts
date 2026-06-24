@@ -8,11 +8,12 @@
  * - Protocol/URL handling
  */
 
-import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession } from '@airlock/core';
+import { DOCKER_DOWNLOAD_URL, isDockerAvailable, refreshDockerAvailability } from './dockerCheck.js';
 import {
   IPC_CHANNELS,
   type AirlockInput,
@@ -26,9 +27,48 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const VERSION = '0.1.1';
+const VERSION = '0.3.1';
 
 let mainWindow: BrowserWindow | null = null;
+
+async function notifyDockerUnavailable(): Promise<void> {
+  const result = await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Docker Required',
+    message: 'Airlock requires Docker Desktop to run sandboxes.',
+    detail: 'Install Docker Desktop to create isolated sessions. The app will open without sandbox support until Docker is available.',
+    buttons: ['Open Docker Download', 'Continue'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (result.response === 0) {
+    await shell.openExternal(DOCKER_DOWNLOAD_URL);
+  }
+}
+
+async function ensureDockerNotice(): Promise<void> {
+  refreshDockerAvailability();
+  if (!isDockerAvailable()) {
+    await notifyDockerUnavailable();
+  }
+}
+
+function buildDockerUnavailableSession(input: AirlockInput): AirlockSession {
+  const now = Date.now();
+  return {
+    sessionId: 'docker-unavailable',
+    containerId: '',
+    status: 'error',
+    metadata: {
+      startTime: now,
+      endTime: now,
+      exitReason: 'error',
+      inputType: input.type,
+      networkMode: input.type === 'url' ? 'enabled' : (input.networkMode ?? 'isolated'),
+    },
+  };
+}
 
 function configureSessionForLocalVnc(): void {
   const defaultSession = session.defaultSession;
@@ -122,6 +162,13 @@ function registerIpcHandlers(): void {
     IPC_CHANNELS.SESSION_CREATE,
     async (_event, input: AirlockInput): Promise<AirlockSession> => {
       console.log(`[ipc] executeAirlockSession type=${input.type}`);
+
+      if (!isDockerAvailable()) {
+        const error = buildDockerUnavailableSession(input);
+        emitSessionError(error, 'Airlock requires Docker Desktop to run sandboxes.');
+        return error;
+      }
+
       const result = await executeAirlockSession(input);
 
       if (result.status === 'running') {
@@ -177,6 +224,7 @@ app.whenReady().then(async () => {
   docker.installCrashTrap();
 
   mainWindow = createMainWindow();
+  void ensureDockerNotice();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
