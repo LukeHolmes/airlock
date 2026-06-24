@@ -1,50 +1,27 @@
 /**
  * Airlock Preload Script
  *
- * Exposes type-safe IPC API to the renderer process via contextBridge.
- * All container operations are proxied to the main process.
+ * Exposes the canonical session contract to the renderer via contextBridge.
  */
 
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import {
   IPC_CHANNELS,
   type AirlockIpcApi,
-  type CreateFileContainerRequest,
-  type CreateUrlContainerRequest,
-  type ContainerSession,
-  type ContainerStatus,
+  type AirlockInput,
+  type AirlockSession,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
 } from '../shared/ipc.js';
 
-// Container lifecycle handlers
-
-async function createFileContainer(request: CreateFileContainerRequest): Promise<ContainerSession> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_CREATE, request);
+async function createSession(input: AirlockInput): Promise<AirlockSession> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_CREATE, input);
 }
 
-async function createUrlContainer(request: CreateUrlContainerRequest): Promise<ContainerSession> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_CREATE_URL, request);
+async function destroySession(session: AirlockSession): Promise<AirlockSession> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_DESTROY, session);
 }
-
-async function destroyContainer(sessionId: string): Promise<void> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_DESTROY, sessionId);
-}
-
-async function killContainer(sessionId: string): Promise<void> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_KILL, sessionId);
-}
-
-async function listContainers(): Promise<ContainerSession[]> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_LIST);
-}
-
-async function getContainerStatus(sessionId: string): Promise<ContainerStatus> {
-  return ipcRenderer.invoke(IPC_CHANNELS.CONTAINER_STATUS, sessionId);
-}
-
-// Session event subscribers
 
 function onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, data: SessionStartedEvent) => {
@@ -76,8 +53,6 @@ function onSessionError(callback: (event: SessionErrorEvent) => void): () => voi
   };
 }
 
-// System handlers
-
 async function installCrashTrap(): Promise<void> {
   return ipcRenderer.invoke(IPC_CHANNELS.INSTALL_CRASH_TRAP);
 }
@@ -96,25 +71,9 @@ function onOpenFile(callback: (filePath: string) => void): () => void {
   };
 }
 
-function onOpenUrl(callback: (url: string) => void): () => void {
-  const handler = (_event: Electron.IpcRendererEvent, url: string) => {
-    callback(url);
-  };
-  ipcRenderer.on('airlock:open-url', handler);
-  return () => {
-    ipcRenderer.removeListener('airlock:open-url', handler);
-  };
-}
-
-// Expose API to renderer
-
 const airlockApi: AirlockIpcApi = {
-  createFileContainer,
-  createUrlContainer,
-  destroyContainer,
-  killContainer,
-  listContainers,
-  getContainerStatus,
+  createSession,
+  destroySession,
   onSessionStarted,
   onSessionEnded,
   onSessionError,
@@ -122,9 +81,8 @@ const airlockApi: AirlockIpcApi = {
   getVersion,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
-  onOpenUrl,
 };
 
 contextBridge.exposeInMainWorld('airlock', airlockApi);
 
-console.log('[preload] Airlock IPC API exposed');
+console.log('[preload] Airlock session IPC API exposed');

@@ -2,18 +2,13 @@
  * Airlock IPC Channel Definitions
  *
  * Shared between main process, preload, and renderer.
- * Provides type-safe IPC for UI ↔ ContainerManager communication.
+ * Canonical session contract aligned with @airlock/core session types.
  */
 
-// Container lifecycle channels
+// Session lifecycle channels
 export const IPC_CHANNELS = {
-  // Lifecycle
-  CONTAINER_CREATE: 'airlock:container:create',
-  CONTAINER_CREATE_URL: 'airlock:container:create-url',
-  CONTAINER_DESTROY: 'airlock:container:destroy',
-  CONTAINER_KILL: 'airlock:container:kill',
-  CONTAINER_LIST: 'airlock:container:list',
-  CONTAINER_STATUS: 'airlock:container:status',
+  SESSION_CREATE: 'airlock:session:create',
+  SESSION_DESTROY: 'airlock:session:destroy',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -29,81 +24,57 @@ export const IPC_CHANNELS = {
 type IpcChannels = typeof IPC_CHANNELS;
 export type IpcChannel = IpcChannels[keyof IpcChannels];
 
-// Request/Response types
+// Canonical session contract (mirrors @airlock/core session/types)
 
-export interface CreateFileContainerRequest {
+export type AirlockInput = {
+  type: 'file';
   filePath: string;
-  name?: string;
-  debug?: boolean;
-}
+  mimeType?: string;
+};
 
-export interface CreateUrlContainerRequest {
-  url: string;
-  name?: string;
-  debug?: boolean;
-}
+export type AirlockSessionStatus = 'starting' | 'running' | 'error' | 'destroyed';
 
-export interface ContainerSession {
-  id: string;
-  name: string;
-  createdAt: string;
-  config: {
-    image: string;
-    cmd?: string[];
-  };
+export type AirlockSession = {
+  sessionId: string;
+  containerId: string;
+  status: AirlockSessionStatus;
   vncUrl?: string;
-  vncPageUrl?: string;
-}
-
-export interface ContainerStatus {
-  id: string;
-  running: boolean;
-}
+  metadata: {
+    startTime: number;
+    endTime?: number;
+    exitReason?: 'user_destroy' | 'crash' | 'error';
+  };
+};
 
 export interface SessionStartedEvent {
-  session: ContainerSession;
-  vncUrl?: string;
+  session: AirlockSession;
 }
 
 export interface SessionEndedEvent {
-  sessionId: string;
-  reason: 'destroyed' | 'crashed' | 'error';
+  session: AirlockSession;
 }
 
 export interface SessionErrorEvent {
-  sessionId: string;
+  session: AirlockSession;
   error: string;
 }
 
 // IPC API interface (exposed to renderer via preload)
 
 export interface AirlockIpcApi {
-  // Container lifecycle
-  createFileContainer(request: CreateFileContainerRequest): Promise<ContainerSession>;
-  createUrlContainer(request: CreateUrlContainerRequest): Promise<ContainerSession>;
-  destroyContainer(sessionId: string): Promise<void>;
-  killContainer(sessionId: string): Promise<void>;
-  listContainers(): Promise<ContainerSession[]>;
-  getContainerStatus(sessionId: string): Promise<ContainerStatus>;
+  createSession(input: AirlockInput): Promise<AirlockSession>;
+  destroySession(session: AirlockSession): Promise<AirlockSession>;
 
-  // Session events (subscribe via callbacks)
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;
   onSessionEnded(callback: (event: SessionEndedEvent) => void): () => void;
   onSessionError(callback: (event: SessionErrorEvent) => void): () => void;
 
-  // System
   installCrashTrap(): Promise<void>;
   getVersion(): Promise<string>;
-
-  // File path resolution (Electron webUtils)
   getPathForFile(file: File): string;
-
-  // Host file/URL open events (dock icon, CLI)
   onOpenFile(callback: (filePath: string) => void): () => void;
-  onOpenUrl(callback: (url: string) => void): () => void;
 }
 
-// Extend Window interface for TypeScript
 declare global {
   interface Window {
     airlock?: AirlockIpcApi;

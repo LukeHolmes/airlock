@@ -3,40 +3,53 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, FileDown, Link, Zap, Trash2, Box, Terminal } from 'lucide-react';
 import VncViewer from './VncViewer';
 import type {
-  ContainerSession,
-  CreateFileContainerRequest,
+  AirlockInput,
+  AirlockSession,
   SessionStartedEvent,
   SessionEndedEvent,
   SessionErrorEvent,
 } from '../shared/ipc.js';
 
-type AppState = 'idle' | 'igniting' | 'active';
+type ViewState = 'idle' | 'igniting' | 'active' | 'error';
 
-// Type-safe access to IPC API exposed by preload
 const ipc = typeof window !== 'undefined' ? window.airlock : undefined;
 
+function viewStateFromSession(session: AirlockSession | null): ViewState {
+  if (!session) return 'idle';
+  switch (session.status) {
+    case 'starting':
+      return 'igniting';
+    case 'running':
+      return 'active';
+    case 'error':
+      return 'error';
+    case 'destroyed':
+      return 'idle';
+    default:
+      return 'idle';
+  }
+}
+
 export default function AirlockApp() {
-  const [appState, setAppState] = useState<AppState>('idle');
+  const [session, setSession] = useState<AirlockSession | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
-  const [session, setSession] = useState<ContainerSession | null>(null);
-  const [vncPageUrl, setVncPageUrl] = useState<string | undefined>();
   const [error, setError] = useState<string | null>(null);
 
-  const startIgnitionSequence = useCallback((type: 'file' | 'url') => {
-    setAppState('igniting');
+  const viewState = viewStateFromSession(session);
+
+  const startIgnitionLogs = useCallback(() => {
     setLogs([]);
     setError(null);
 
     const sequence = [
-      `[sys] Allocating ephemeral workspace for ${type}...`,
-      `[docker] Pulling airlock/sandbox:latest...`,
-      `[vol] Mounting payload read-only...`,
-      `[net] Air-gapped network adapters verified.`,
-      `[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.`,
-      `[vnc] Establishing secure WebSocket bridge...`,
-      `[sys] Container sealed — awaiting KasmVNC feed...`,
+      '[sys] Allocating ephemeral workspace for file...',
+      '[docker] Pulling airlock/sandbox:latest...',
+      '[vol] Mounting payload read-only...',
+      '[net] Air-gapped network adapters verified.',
+      '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
+      '[vnc] Establishing secure WebSocket bridge...',
+      '[sys] Container sealed — awaiting KasmVNC feed...',
     ];
 
     let step = 0;
@@ -54,38 +67,43 @@ export default function AirlockApp() {
 
   const handleFilePath = useCallback(
     async (filePath: string) => {
-      const fileName = filePath.split(/[/\\]/).pop() ?? filePath;
-      const cleanup = startIgnitionSequence('file');
-
       if (!ipc) {
         setError('IPC not available');
-        setAppState('idle');
-        cleanup();
         return;
       }
 
-      try {
-        const request: CreateFileContainerRequest = {
-          filePath,
-          name: `airlock-${fileName.replace(/[^a-zA-Z0-9-]/g, '-').slice(0, 20)}`,
-        };
+      const cleanup = startIgnitionLogs();
 
-        const newSession = await ipc.createFileContainer(request);
-        setSession(newSession);
-        setVncPageUrl(newSession.vncPageUrl);
-        if (newSession.vncPageUrl) {
-          setAppState('active');
+      setSession({
+        sessionId: 'pending',
+        containerId: '',
+        status: 'starting',
+        metadata: { startTime: Date.now() },
+      });
+
+      try {
+        const input: AirlockInput = { type: 'file', filePath };
+        const result = await ipc.createSession(input);
+        setSession(result);
+
+        if (result.status === 'error') {
+          setError('Session failed to start');
+        } else if (result.status === 'running') {
+          setLogs((prev) => [...prev, `[sys] Container sealed — ${result.sessionId.slice(0, 12)}`]);
+          if (result.vncUrl) {
+            setLogs((prev) => [...prev, `[vnc] Stream at ${result.vncUrl}`]);
+          }
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
-        setAppState('idle');
+        setSession(null);
         setLogs((prev) => [...prev, `[err] ${message}`]);
       } finally {
         cleanup();
       }
     },
-    [startIgnitionSequence],
+    [startIgnitionLogs],
   );
 
   const handleFileDrop = useCallback(
@@ -94,14 +112,12 @@ export default function AirlockApp() {
         setError('IPC not available');
         return;
       }
-
       const filePath = ipc.getPathForFile(file);
       await handleFilePath(filePath);
     },
     [handleFilePath],
   );
 
-  // Install crash trap on mount
   useEffect(() => {
     if (!ipc) return;
 
@@ -110,29 +126,21 @@ export default function AirlockApp() {
     });
 
     const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
-      console.log('[AirlockApp] Session started:', event.session.name);
       setSession(event.session);
-      setVncPageUrl(event.session.vncPageUrl);
-      setAppState('active');
-      setLogs((prev) => [...prev, `[sys] Container sealed — ${event.session.name}`]);
-      if (event.vncUrl) {
-        setLogs((prev) => [...prev, `[vnc] Stream at ${event.vncUrl}`]);
+      if (event.session.status === 'running' && event.session.vncUrl) {
+        setLogs((prev) => [...prev, `[vnc] Stream at ${event.session.vncUrl}`]);
       }
     });
 
-    const unsubEnded = ipc.onSessionEnded((event: SessionEndedEvent) => {
-      console.log('[AirlockApp] Session ended:', event.sessionId, event.reason);
+    const unsubEnded = ipc.onSessionEnded((_event: SessionEndedEvent) => {
       setSession(null);
-      setVncPageUrl(undefined);
-      setAppState('idle');
       setLogs([]);
-      setUrlInput('');
+      setError(null);
     });
 
     const unsubError = ipc.onSessionError((event: SessionErrorEvent) => {
-      console.error('[AirlockApp] Session error:', event.sessionId, event.error);
       setError(event.error);
-      setAppState('idle');
+      setSession(event.session.status === 'error' ? event.session : null);
     });
 
     const unsubOpenFile = ipc.onOpenFile((filePath: string) => {
@@ -148,22 +156,26 @@ export default function AirlockApp() {
   }, [handleFilePath]);
 
   const handleDestroyWorkspace = useCallback(async () => {
-    if (!session || !ipc) return;
+    if (!session || session.status !== 'running' || !ipc) return;
 
     try {
-      setLogs((prev) => [...prev, `[sys] Destroying workspace ${session.name}...`]);
-      await ipc.destroyContainer(session.id);
+      setLogs((prev) => [...prev, `[sys] Destroying workspace ${session.sessionId.slice(0, 12)}...`]);
+      const result = await ipc.destroySession(session);
+      if (result.status === 'destroyed') {
+        setSession(null);
+        setLogs([]);
+      } else if (result.status === 'error') {
+        setError('Failed to destroy workspace');
+        setSession(result);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      setLogs((prev) => [...prev, `[err] ${message}`]);
+      setError(message);
       setSession(null);
-      setVncPageUrl(undefined);
-      setAppState('idle');
-      setUrlInput('');
+      setLogs([]);
     }
   }, [session]);
 
-  // --- Drag & Drop Handlers ---
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(true);
@@ -178,22 +190,15 @@ export default function AirlockApp() {
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        void handleFileDrop(file);
+      if (e.dataTransfer.files?.length) {
+        void handleFileDrop(e.dataTransfer.files[0]);
       }
     },
     [handleFileDrop],
   );
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-  };
-
   return (
     <div className="min-h-screen w-full bg-[#08090B] text-[#ECEFF3] font-sans overflow-hidden flex flex-col selection:bg-[#3DE8D4]/20 selection:text-[#04201D]">
-      {/* Background Texture: Subtle Grid */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
@@ -203,7 +208,6 @@ export default function AirlockApp() {
         }}
       />
 
-      {/* Top Command Bar */}
       <header className="h-12 border-b border-[#23272F] bg-[#0C0E11]/80 backdrop-blur-md flex items-center justify-between px-4 z-10 window-drag">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center w-6 h-6 text-[#3DE8D4]">
@@ -214,9 +218,8 @@ export default function AirlockApp() {
           </span>
         </div>
 
-        {/* Status indicators */}
         <div className="flex items-center gap-4">
-          {appState === 'active' && session && (
+          {viewState === 'active' && session && (
             <div className="flex items-center gap-4 no-drag">
               <div className="flex items-center gap-2 bg-[#28D3BF]/10 border border-[#28D3BF]/20 px-2.5 py-1 rounded-[4px]">
                 <span className="w-2 h-2 rounded-full bg-[#3DE8D4] shadow-[0_0_8px_#3DE8D4]" />
@@ -243,7 +246,6 @@ export default function AirlockApp() {
         </div>
       </header>
 
-      {/* Error Toast */}
       {error && (
         <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20">
           <div className="bg-[#F23D3D]/10 border border-[#F23D3D]/30 rounded-[6px] px-4 py-2 flex items-center gap-3">
@@ -255,11 +257,9 @@ export default function AirlockApp() {
         </div>
       )}
 
-      {/* Main Content Area */}
       <main className="flex-1 relative flex items-center justify-center p-4 md:p-8 z-0">
         <AnimatePresence mode="wait">
-          {/* STATE: IDLE */}
-          {appState === 'idle' && (
+          {viewState === 'idle' && (
             <motion.div
               key="idle"
               initial={{ opacity: 0, y: 10 }}
@@ -268,7 +268,6 @@ export default function AirlockApp() {
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="w-full max-w-2xl flex flex-col gap-6"
             >
-              {/* Drop Zone */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -291,8 +290,6 @@ export default function AirlockApp() {
                 <p className="text-[15px] text-[#AAB3BE] max-w-[280px] text-center">
                   Opens in a sealed, air-gapped workspace.
                 </p>
-
-                {/* Visual Scanner: one-time sweep on drag enter */}
                 {isDragging && (
                   <motion.div
                     className="absolute top-0 left-0 w-full h-[1px] bg-[#3DE8D4] shadow-[0_0_10px_#3DE8D4]"
@@ -303,24 +300,18 @@ export default function AirlockApp() {
                 )}
               </div>
 
-              {/* URL input deferred to v0.2.0 (requires network opt-in) */}
-              <form
-                onSubmit={handleFormSubmit}
-                className="relative group opacity-50 pointer-events-none"
-              >
+              <form className="relative group opacity-50 pointer-events-none">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Link size={16} className="text-[#6E7782]" />
                 </div>
                 <input
                   type="url"
-                  value={urlInput}
-                  onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="URL sessions — v0.2.0"
                   disabled
                   className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58]"
                 />
                 <button
-                  type="submit"
+                  type="button"
                   disabled
                   className="absolute inset-y-1 right-1 px-4 bg-[#333944] text-[#6E7782] text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2"
                 >
@@ -329,7 +320,6 @@ export default function AirlockApp() {
                 </button>
               </form>
 
-              {/* IPC warning */}
               {!ipc && (
                 <p className="text-[12px] text-[#F23D3D] text-center font-mono">
                   IPC API not available. Running in mock mode.
@@ -338,8 +328,7 @@ export default function AirlockApp() {
             </motion.div>
           )}
 
-          {/* STATE: IGNITING (Loading) */}
-          {appState === 'igniting' && (
+          {viewState === 'igniting' && (
             <motion.div
               key="igniting"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -380,8 +369,7 @@ export default function AirlockApp() {
             </motion.div>
           )}
 
-          {/* STATE: ACTIVE STREAM */}
-          {appState === 'active' && (
+          {viewState === 'active' && session && (
             <motion.div
               key="active"
               initial={{ opacity: 0 }}
@@ -389,7 +377,6 @@ export default function AirlockApp() {
               exit={{ opacity: 0, scale: 0.98 }}
               className="w-full h-full flex flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
             >
-              {/* Internal Browser/Viewer Chrome */}
               <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
                 <div className="flex items-center gap-1.5 opacity-50">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#F23D3D]" />
@@ -400,21 +387,14 @@ export default function AirlockApp() {
                   <div className="bg-[#181C22] rounded-[4px] border border-[#23272F] px-3 py-1 flex items-center gap-2 max-w-sm w-full">
                     <Terminal size={12} className="text-[#6E7782]" />
                     <span className="font-mono text-[11px] text-[#AAB3BE] truncate">
-                      {session
-                        ? `${session.name} — ${session.id.slice(0, 12)}`
-                        : 'root@airlock-instance-04:~#'}
+                      {session.sessionId.slice(0, 12)} — {session.containerId.slice(0, 12)}
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* KasmVNC stream */}
               <div className="flex-1 relative bg-[#08090B] min-h-0">
-                <VncViewer
-                  vncPageUrl={vncPageUrl ?? session?.vncPageUrl}
-                  vncUrl={session?.vncUrl}
-                  sessionName={session?.name}
-                />
+                <VncViewer vncUrl={session.vncUrl} sessionId={session.sessionId} />
               </div>
             </motion.div>
           )}
