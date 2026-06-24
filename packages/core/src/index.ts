@@ -12,4 +12,4 @@ export {
   logEvent,
 } from './session/index.js';
 
-export type { AirlockInput, AirlockSession, AirlockSessionStatus } from './session/index.js';
+export type { AirlockInput, AirlockSession, AirlockSessionStatus, NetworkMode } from './session/index.js';

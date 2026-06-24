@@ -1,13 +1,47 @@
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 
-import { createFileContainer, destroyContainer } from '../docker/index.js';
+import { createFileContainer, createUrlContainer, destroyContainer } from '../docker/index.js';
 import { logEvent } from './logger.js';
-import type { AirlockInput, AirlockSession } from './types.js';
+import type { AirlockInput, AirlockSession, NetworkMode } from './types.js';
 
-function validateInput(input: AirlockInput): string | null {
-  if (input.type !== 'file') {
-    return 'Unsupported input type';
+function resolveNetworkMode(input: AirlockInput): NetworkMode {
+  return input.networkMode ?? 'isolated';
+}
+
+function errorSession(sessionId: string, startTime: number): AirlockSession {
+  return {
+    sessionId,
+    containerId: '',
+    status: 'error',
+    metadata: {
+      startTime,
+      endTime: Date.now(),
+      exitReason: 'error',
+    },
+  };
+}
+
+function validateInput(input: AirlockInput, networkMode: NetworkMode): string | null {
+  if (input.type === 'url') {
+    if (networkMode !== 'enabled') {
+      return 'URL sessions require network access';
+    }
+
+    if (!input.url || input.url.trim().length === 0) {
+      return 'url is required';
+    }
+
+    try {
+      const urlObj = new URL(input.url);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        return `Invalid URL protocol: ${urlObj.protocol}`;
+      }
+    } catch {
+      return 'Invalid URL';
+    }
+
+    return null;
   }
 
   if (!input.filePath || input.filePath.trim().length === 0) {
@@ -22,41 +56,45 @@ function validateInput(input: AirlockInput): string | null {
 }
 
 /**
- * Execute a file session through the existing ContainerManager path.
- * Wraps createFileContainer — does not alter container configuration.
+ * Execute a session through the existing ContainerManager path.
+ * Wraps createFileContainer / createUrlContainer — does not alter container security.
  */
 export async function executeAirlockSession(input: AirlockInput): Promise<AirlockSession> {
   const startTime = Date.now();
   const sessionId = randomUUID();
+  const networkMode = resolveNetworkMode(input);
 
   logEvent('INPUT_RECEIVED', {
     sessionId,
     type: input.type,
-    filePath: input.filePath,
-    mimeType: input.mimeType,
+    networkMode,
+    ...(input.type === 'file'
+      ? { filePath: input.filePath, mimeType: input.mimeType }
+      : { url: input.url }),
   });
 
-  const validationError = validateInput(input);
+  logEvent('NETWORK_MODE_SELECTED', { sessionId, networkMode });
+
+  if (input.type === 'url') {
+    logEvent('URL_SESSION_REQUESTED', { sessionId, url: input.url, networkMode });
+  }
+
+  const validationError = validateInput(input, networkMode);
   if (validationError) {
-    logEvent('SESSION_ERROR', { sessionId, error: validationError });
-    return {
-      sessionId,
-      containerId: '',
-      status: 'error',
-      metadata: {
-        startTime,
-        endTime: Date.now(),
-        exitReason: 'error',
-      },
-    };
+    logEvent('SESSION_ERROR', { sessionId, error: validationError, networkMode });
+    return errorSession(sessionId, startTime);
   }
 
   try {
-    const container = await createFileContainer(input.filePath);
+    const container =
+      input.type === 'file'
+        ? await createFileContainer(input.filePath, { networkMode })
+        : await createUrlContainer(input.url, { networkMode: 'enabled' });
 
     logEvent('SESSION_CREATED', {
       sessionId,
       containerId: container.id,
+      networkMode,
     });
 
     const session: AirlockSession = {
@@ -71,22 +109,14 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
       sessionId,
       containerId: container.id,
       vncUrl: session.vncUrl,
+      networkMode,
     });
 
     return session;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logEvent('SESSION_ERROR', { sessionId, error: message });
-    return {
-      sessionId,
-      containerId: '',
-      status: 'error',
-      metadata: {
-        startTime,
-        endTime: Date.now(),
-        exitReason: 'error',
-      },
-    };
+    logEvent('SESSION_ERROR', { sessionId, error: message, networkMode });
+    return errorSession(sessionId, startTime);
   }
 }
 

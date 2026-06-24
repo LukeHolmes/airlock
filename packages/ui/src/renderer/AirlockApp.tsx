@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, FileDown, Link, Zap, Trash2, Box, Terminal } from 'lucide-react';
+import { ShieldCheck, FileDown, Link, Zap, Trash2, Box, Terminal, Wifi, WifiOff } from 'lucide-react';
 import VncViewer from './VncViewer';
 import type {
   AirlockInput,
@@ -35,22 +35,36 @@ export default function AirlockApp() {
   const [isDragging, setIsDragging] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [networkEnabled, setNetworkEnabled] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
 
   const viewState = viewStateFromSession(session);
 
-  const startIgnitionLogs = useCallback(() => {
+  const startIgnitionLogs = useCallback((inputType: 'file' | 'url' = 'file') => {
     setLogs([]);
     setError(null);
 
-    const sequence = [
-      '[sys] Allocating ephemeral workspace for file...',
-      '[docker] Pulling airlock/sandbox:latest...',
-      '[vol] Mounting payload read-only...',
-      '[net] Air-gapped network adapters verified.',
-      '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
-      '[vnc] Establishing secure WebSocket bridge...',
-      '[sys] Container sealed — awaiting KasmVNC feed...',
-    ];
+    const sequence =
+      inputType === 'url'
+        ? [
+            '[sys] Allocating ephemeral workspace for URL...',
+            '[docker] Pulling airlock/sandbox:latest...',
+            '[net] Bridge network enabled — external egress active.',
+            '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
+            '[vnc] Establishing secure WebSocket bridge...',
+            '[sys] Container sealed — awaiting KasmVNC feed...',
+          ]
+        : [
+            '[sys] Allocating ephemeral workspace for file...',
+            '[docker] Pulling airlock/sandbox:latest...',
+            '[vol] Mounting payload read-only...',
+            networkEnabled
+              ? '[net] Bridge network enabled — external egress active.'
+              : '[net] Air-gapped network adapters verified.',
+            '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
+            '[vnc] Establishing secure WebSocket bridge...',
+            '[sys] Container sealed — awaiting KasmVNC feed...',
+          ];
 
     let step = 0;
     const interval = setInterval(() => {
@@ -63,16 +77,16 @@ export default function AirlockApp() {
     }, 400);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [networkEnabled]);
 
-  const handleFilePath = useCallback(
-    async (filePath: string) => {
+  const startSession = useCallback(
+    async (input: AirlockInput) => {
       if (!ipc) {
         setError('IPC not available');
         return;
       }
 
-      const cleanup = startIgnitionLogs();
+      const cleanup = startIgnitionLogs(input.type);
 
       setSession({
         sessionId: 'pending',
@@ -82,7 +96,6 @@ export default function AirlockApp() {
       });
 
       try {
-        const input: AirlockInput = { type: 'file', filePath };
         const result = await ipc.createSession(input);
         setSession(result);
 
@@ -104,6 +117,43 @@ export default function AirlockApp() {
       }
     },
     [startIgnitionLogs],
+  );
+
+  const handleFilePath = useCallback(
+    async (filePath: string) => {
+      const input: AirlockInput = {
+        type: 'file',
+        filePath,
+        ...(networkEnabled ? { networkMode: 'enabled' as const } : {}),
+      };
+      await startSession(input);
+    },
+    [networkEnabled, startSession],
+  );
+
+  const handleUrlSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+
+      const url = urlInput.trim();
+      if (!url) {
+        setError('URL is required');
+        return;
+      }
+
+      if (!networkEnabled) {
+        setError('Network access must be enabled for URL sessions');
+        return;
+      }
+
+      const input: AirlockInput = {
+        type: 'url',
+        url,
+        networkMode: 'enabled',
+      };
+      await startSession(input);
+    },
+    [urlInput, networkEnabled, startSession],
   );
 
   const handleFileDrop = useCallback(
@@ -300,20 +350,56 @@ export default function AirlockApp() {
                 )}
               </div>
 
-              <form className="relative group opacity-50 pointer-events-none">
+              <div className="flex items-center justify-between gap-4 px-1">
+                <span className="text-[12px] font-mono text-[#7E8B9A] uppercase tracking-wider">
+                  Network Access
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNetworkEnabled(false)}
+                    disabled={viewState !== 'idle'}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-[6px] font-mono text-[11px] font-medium transition-all duration-150 border ${
+                      !networkEnabled
+                        ? 'bg-[#3DE8D4]/10 border-[#3DE8D4]/40 text-[#3DE8D4]'
+                        : 'bg-[#12151A] border-[#23272F] text-[#6E7782] hover:border-[#7E8B9A]'
+                    } disabled:opacity-50 disabled:pointer-events-none`}
+                  >
+                    <WifiOff size={13} />
+                    OFF — Air-Gapped (Safe)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNetworkEnabled(true)}
+                    disabled={viewState !== 'idle'}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-[6px] font-mono text-[11px] font-medium transition-all duration-150 border ${
+                      networkEnabled
+                        ? 'bg-[#FF6A2B]/15 border-[#FF6A2B]/50 text-[#FF6A2B] shadow-[0_0_12px_rgba(255,106,43,0.15)]'
+                        : 'bg-[#12151A] border-[#23272F] text-[#6E7782] hover:border-[#7E8B9A]'
+                    } disabled:opacity-50 disabled:pointer-events-none`}
+                  >
+                    <Wifi size={13} />
+                    ON — Network Enabled (Less Safe)
+                  </button>
+                </div>
+              </div>
+
+              <form onSubmit={handleUrlSubmit} className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <Link size={16} className="text-[#6E7782]" />
                 </div>
                 <input
                   type="url"
-                  placeholder="URL sessions — v0.2.0"
-                  disabled
-                  className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58]"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://example.com/document.pdf"
+                  disabled={viewState !== 'idle' || !ipc}
+                  className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58] focus:outline-none focus:border-[#3DE8D4]/50 disabled:opacity-50"
                 />
                 <button
-                  type="button"
-                  disabled
-                  className="absolute inset-y-1 right-1 px-4 bg-[#333944] text-[#6E7782] text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2"
+                  type="submit"
+                  disabled={viewState !== 'idle' || !ipc || !urlInput.trim()}
+                  className="absolute inset-y-1 right-1 px-4 bg-[#3DE8D4] hover:bg-[#28D3BF] disabled:bg-[#333944] disabled:text-[#6E7782] text-[#04201D] disabled:cursor-not-allowed text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2 transition-colors"
                 >
                   <Zap size={14} />
                   Detonate
