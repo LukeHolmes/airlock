@@ -9,7 +9,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react({ fastRefresh: true })],
   base: './',
   root: path.resolve(__dirname, 'src/renderer'),
   publicDir: path.resolve(__dirname, 'public'),
@@ -31,5 +31,6 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    hmr: true,
   },
 });
