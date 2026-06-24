@@ -10,6 +10,15 @@ export {
   executeAirlockSession,
   destroyAirlockSession,
   logEvent,
+  getSessionArtefacts,
+  analyzeSession,
 } from './session/index.js';
 
-export type { AirlockInput, AirlockSession, AirlockSessionStatus, NetworkMode } from './session/index.js';
+export type {
+  AirlockInput,
+  AirlockSession,
+  AirlockSessionStatus,
+  NetworkMode,
+  SessionArtefacts,
+  SessionAnalysisResult,
+} from './session/index.js';

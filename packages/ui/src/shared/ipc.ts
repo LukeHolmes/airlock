@@ -9,6 +9,7 @@
 export const IPC_CHANNELS = {
   SESSION_CREATE: 'airlock:session:create',
   SESSION_DESTROY: 'airlock:session:destroy',
+  SESSION_ANALYZE: 'airlock:session:analyze',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -52,6 +53,20 @@ export type AirlockSession = {
     startTime: number;
     endTime?: number;
     exitReason?: 'user_destroy' | 'crash' | 'error';
+    inputType: 'file' | 'url';
+    networkMode: NetworkMode;
+  };
+};
+
+export type SessionAnalysisResult = {
+  status: 'not_implemented';
+  message: string;
+  artefactsSummary: {
+    input: {
+      type: 'file' | 'url';
+      value: string;
+    };
+    eventCount: number;
   };
 };
 
@@ -73,6 +88,7 @@ export interface SessionErrorEvent {
 export interface AirlockIpcApi {
   createSession(input: AirlockInput): Promise<AirlockSession>;
   destroySession(session: AirlockSession): Promise<AirlockSession>;
+  analyzeSession(sessionId: string): Promise<SessionAnalysisResult>;
 
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;
   onSessionEnded(callback: (event: SessionEndedEvent) => void): () => void;

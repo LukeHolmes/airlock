@@ -12,11 +12,12 @@ import { app, BrowserWindow, ipcMain, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { docker, executeAirlockSession, destroyAirlockSession } from '@airlock/core';
+import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession } from '@airlock/core';
 import {
   IPC_CHANNELS,
   type AirlockInput,
   type AirlockSession,
+  type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -146,6 +147,14 @@ function registerIpcHandlers(): void {
       }
 
       return result;
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SESSION_ANALYZE,
+    async (_event, sessionId: string): Promise<SessionAnalysisResult> => {
+      console.log(`[ipc] analyzeSession ${sessionId.slice(0, 12)}`);
+      return analyzeSession(sessionId);
     },
   );
 
