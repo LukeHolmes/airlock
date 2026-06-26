@@ -1,4 +1,5 @@
 import type { SessionArtefacts } from '../session/artefacts.js';
+import { debugLog } from '../session/debug.js';
 import type { LightweightAnalysis } from './types.js';
 
 const SHORT_SESSION_MS = 3000;
@@ -132,15 +133,27 @@ function buildRecommendation(riskLevel: LightweightAnalysis['riskLevel']): strin
 }
 
 export function generateLightweightAnalysis(artefacts: SessionArtefacts): LightweightAnalysis {
+  debugLog('generateLightweightAnalysis start', {
+    sessionId: artefacts.sessionId,
+    eventCount: artefacts.logs.length,
+  });
+
   const shortExecution = sessionDurationMs(artefacts) < SHORT_SESSION_MS;
   const failure = hasFailure(artefacts);
   const riskLevel = deriveRiskLevel(artefacts, shortExecution, failure);
 
-  return {
+  const analysis: LightweightAnalysis = {
     summary: buildSummary(artefacts, shortExecution, failure),
     riskLevel,
     observations: buildObservations(artefacts),
     signals: buildSignals(artefacts, shortExecution),
     recommendation: buildRecommendation(riskLevel),
   };
+
+  debugLog('generateLightweightAnalysis complete', {
+    sessionId: artefacts.sessionId,
+    riskLevel: analysis.riskLevel,
+  });
+
+  return analysis;
 }

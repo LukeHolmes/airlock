@@ -3,6 +3,7 @@ import fs from 'node:fs';
 
 import { createFileContainer, createUrlContainer, destroyContainer } from '../docker/index.js';
 import { registerSessionRecord, updateSessionRecord } from './artefacts.js';
+import { debugLog } from './debug.js';
 import { logEvent } from './logger.js';
 import type { AirlockInput, AirlockSession, NetworkMode } from './types.js';
 
@@ -90,6 +91,8 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
   };
   registerSessionRecord(sessionId, descriptor, baseMetadata);
 
+  debugLog('executeAirlockSession start', { sessionId, inputType, networkMode });
+
   logEvent('INPUT_RECEIVED', {
     sessionId,
     type: input.type,
@@ -107,6 +110,7 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
 
   const validationError = validateInput(input, networkMode);
   if (validationError) {
+    debugLog('executeAirlockSession validation failed', { sessionId, validationError });
     logEvent('SESSION_ERROR', { sessionId, error: validationError, networkMode });
     return errorSession(sessionId, startTime, inputType, networkMode);
   }
@@ -139,9 +143,16 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
       networkMode,
     });
 
+    debugLog('executeAirlockSession running', {
+      sessionId,
+      containerId: container.id,
+      vncUrl: session.vncUrl,
+    });
+
     return session;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    debugLog('executeAirlockSession error', { sessionId, message });
     logEvent('SESSION_ERROR', { sessionId, error: message, networkMode });
     return errorSession(sessionId, startTime, inputType, networkMode);
   }

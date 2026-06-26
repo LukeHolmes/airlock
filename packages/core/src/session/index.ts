@@ -1,5 +1,6 @@
 export type { AirlockInput, AirlockSession, AirlockSessionStatus, NetworkMode } from './types.js';
 export { logEvent, getSessionLogs } from './logger.js';
+export { debugLog } from './debug.js';
 export { getSessionArtefacts } from './artefacts.js';
 export type { SessionArtefacts } from './artefacts.js';
 export { analyzeSession } from './analyzeSession.js';

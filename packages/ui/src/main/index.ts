@@ -113,9 +113,12 @@ function createMainWindow(): BrowserWindow {
 
   if (process.env.VITE_DEV_SERVER_URL) {
     window.loadURL(process.env.VITE_DEV_SERVER_URL);
-    window.webContents.openDevTools();
   } else {
     window.loadFile(path.join(__dirname, '../../renderer/index.html'));
+  }
+
+  if (process.env.NODE_ENV === 'development') {
+    window.webContents.openDevTools();
   }
 
   window.webContents.on('will-navigate', (event, navigationUrl) => {

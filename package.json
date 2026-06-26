@@ -7,7 +7,7 @@
     "pnpm": ">=9"
   },
   "scripts": {
-    "dev": "pnpm --parallel -r dev",
+    "dev": "pnpm --filter @airlock/ui electron:dev",
     "build": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build",
     "package": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build && electron-builder",
     "sandbox:build": "docker build -t airlock/sandbox:latest ./packages/sandbox",
