@@ -1,11 +1,15 @@
 {
   "name": "airlock",
   "private": true,
-  "version": "0.1.0",
-  "engines": { "node": ">=20", "pnpm": ">=9" },
+  "version": "0.3.1",
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  },
   "scripts": {
     "dev": "pnpm --parallel -r dev",
     "build": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build",
+    "package": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build && electron-builder",
     "sandbox:build": "docker build -t airlock/sandbox:latest ./packages/sandbox",
     "sandbox:smoke": "bash scripts/sandbox-smoke.sh",
     "core:smoke": "pnpm --filter @airlock/core build && node --import ./scripts/register-core.mjs scripts/core-smoke.mjs",
@@ -18,10 +22,44 @@
     "ci:lint": "pnpm lint && pnpm format:check",
     "ci:docker": "docker build -t airlock/sandbox:test ./packages/sandbox"
   },
+  "build": {
+    "appId": "com.airlock.app",
+    "productName": "Airlock",
+    "executableName": "airlock",
+    "directories": {
+      "output": "dist",
+      "app": "packages/ui"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "!**/_ref/**",
+      "!src/**",
+      "!node_modules/@airlock/core/src/**"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/ssh2/**/*",
+      "**/node_modules/cpu-features/**/*"
+    ],
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility"
+    }
+  },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "electron": "^42.5.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^8.57.0",
     "prettier": "^3.2.0",
     "typescript": "^5.5.0"
