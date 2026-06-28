@@ -12,7 +12,7 @@ import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession } from '@airlock/core';
+import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession, validateDrop } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { refreshReadiness } from './readiness.js';
 import {
@@ -20,6 +20,7 @@ import {
   type AirlockInput,
   type AirlockSession,
   type AirlockReadiness,
+  type DropValidationResult,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -261,6 +262,13 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.GET_READINESS, async (): Promise<AirlockReadiness> => {
     return refreshReadiness();
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.VALIDATE_DROP,
+    async (_event, filePath: string): Promise<DropValidationResult> => {
+      return validateDrop(filePath);
+    },
+  );
 
   console.log('[main] IPC handlers registered');
 }

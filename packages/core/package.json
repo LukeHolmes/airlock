@@ -16,7 +16,8 @@
   "scripts": {
     "dev": "echo 'core dev'",
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "pnpm build && node --test dist/validation/validateDrop.test.js"
   },
   "dependencies": {
     "dockerode": "^4.0.2",

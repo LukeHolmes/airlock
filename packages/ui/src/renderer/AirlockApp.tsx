@@ -142,9 +142,21 @@ export default function AirlockApp() {
 
   const handleFilePath = useCallback(
     async (filePath: string) => {
+      if (!ipc) {
+        setError('IPC not available');
+        return;
+      }
+
+      const validation = await ipc.validateDrop(filePath);
+      if (!validation.ok) {
+        setError(validation.message);
+        return;
+      }
+
       const input: AirlockInput = {
         type: 'file',
         filePath,
+        mimeType: validation.mimeType,
         ...(networkEnabled ? { networkMode: 'enabled' as const } : {}),
       };
       await startSession(input);

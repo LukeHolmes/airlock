@@ -20,6 +20,7 @@ export const IPC_CHANNELS = {
   INSTALL_CRASH_TRAP: 'airlock:system:install-crash-trap',
   GET_VERSION: 'airlock:system:get-version',
   GET_READINESS: 'airlock:system:get-readiness',
+  VALIDATE_DROP: 'airlock:system:validate-drop',
 } as const;
 
 // Type-safe channel names
@@ -76,6 +77,33 @@ export type AirlockReadiness = {
   canStartSession: boolean;
 };
 
+export type DropValidationErrorCode =
+  | 'not_found'
+  | 'not_a_file'
+  | 'symlink'
+  | 'empty'
+  | 'too_large'
+  | 'unreadable'
+  | 'extension_mismatch';
+
+export type DropValidationResult =
+  | {
+      ok: true;
+      filePath: string;
+      mimeType: string;
+      extension: string;
+      sizeBytes: number;
+      sniffedMime: string;
+    }
+  | {
+      ok: false;
+      filePath: string;
+      code: DropValidationErrorCode;
+      message: string;
+      sniffedMime?: string;
+      extension?: string;
+    };
+
 export interface SessionStartedEvent {
   session: AirlockSession;
 }
@@ -103,6 +131,7 @@ export interface AirlockIpcApi {
   installCrashTrap(): Promise<void>;
   getVersion(): Promise<string>;
   getReadiness(): Promise<AirlockReadiness>;
+  validateDrop(filePath: string): Promise<DropValidationResult>;
   getPathForFile(file: File): string;
   onOpenFile(callback: (filePath: string) => void): () => void;
 }
