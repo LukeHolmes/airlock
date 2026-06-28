@@ -64,7 +64,7 @@ type ProgressEvent = {
 
 let sandboxImageConfig: SandboxImageConfig = {
   appVersion: process.env.AIRLOCK_APP_VERSION?.trim() ?? '0.3.1',
-  ghcrOwner: process.env.AIRLOCK_GHCR_OWNER?.trim() ?? 'LukeHolmes',
+  ghcrOwner: (process.env.AIRLOCK_GHCR_OWNER?.trim() ?? 'lukeholmes').toLowerCase(),
 };
 
 let dockerClient: Dockerode | undefined;
@@ -80,6 +80,7 @@ export function configureSandboxImage(overrides: Partial<SandboxImageConfig>): v
   sandboxImageConfig = {
     ...sandboxImageConfig,
     ...overrides,
+    ...(overrides.ghcrOwner ? { ghcrOwner: overrides.ghcrOwner.toLowerCase() } : {}),
   };
 }
 

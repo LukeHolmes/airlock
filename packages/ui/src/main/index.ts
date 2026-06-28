@@ -42,7 +42,7 @@ const __dirname = path.dirname(__filename);
 
 const VERSION = '0.3.1';
 
-configureSandboxImage({ appVersion: VERSION });
+  configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
 
 let mainWindow: BrowserWindow | null = null;
 

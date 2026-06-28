@@ -42,32 +42,32 @@ afterEach(() => {
 
   configureSandboxImage({
     appVersion: '0.3.1',
-    ghcrOwner: 'LukeHolmes',
+    ghcrOwner: 'lukeholmes',
   });
 });
 
 test('getGhcrSandboxImageRef uses configured owner and version', () => {
   configureSandboxImage({ appVersion: '0.3.1', ghcrOwner: 'LukeHolmes' });
 
-  assert.equal(getGhcrSandboxImageRef(), 'ghcr.io/LukeHolmes/airlock-sandbox:0.3.1');
-  assert.equal(getGhcrSandboxImageRef('0.4.0'), 'ghcr.io/LukeHolmes/airlock-sandbox:0.4.0');
+  assert.equal(getGhcrSandboxImageRef(), 'ghcr.io/lukeholmes/airlock-sandbox:0.3.1');
+  assert.equal(getGhcrSandboxImageRef('0.4.0'), 'ghcr.io/lukeholmes/airlock-sandbox:0.4.0');
 });
 
 test('getSandboxImageCandidates prioritizes env override then GHCR ref', () => {
-  configureSandboxImage({ appVersion: '0.3.1', ghcrOwner: 'LukeHolmes' });
+  configureSandboxImage({ appVersion: '0.3.1', ghcrOwner: 'lukeholmes' });
   process.env.AIRLOCK_SANDBOX_IMAGE = 'registry.example.com/airlock:dev';
 
   assert.deepEqual(getSandboxImageCandidates(), [
     'registry.example.com/airlock:dev',
-    'ghcr.io/LukeHolmes/airlock-sandbox:0.3.1',
+    'ghcr.io/lukeholmes/airlock-sandbox:0.3.1',
   ]);
 });
 
 test('getSandboxImageCandidates deduplicates identical refs', () => {
-  configureSandboxImage({ appVersion: '0.3.1', ghcrOwner: 'LukeHolmes' });
-  process.env.AIRLOCK_SANDBOX_IMAGE = 'ghcr.io/LukeHolmes/airlock-sandbox:0.3.1';
+  configureSandboxImage({ appVersion: '0.3.1', ghcrOwner: 'lukeholmes' });
+  process.env.AIRLOCK_SANDBOX_IMAGE = 'ghcr.io/lukeholmes/airlock-sandbox:0.3.1';
 
-  assert.deepEqual(getSandboxImageCandidates(), ['ghcr.io/LukeHolmes/airlock-sandbox:0.3.1']);
+  assert.deepEqual(getSandboxImageCandidates(), ['ghcr.io/lukeholmes/airlock-sandbox:0.3.1']);
 });
 
 test('configureSandboxImage updates runtime config', () => {
