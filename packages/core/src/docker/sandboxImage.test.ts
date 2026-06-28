@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
 
 import {
@@ -7,6 +10,9 @@ import {
   getSandboxImageCandidates,
   getSandboxImageConfig,
   isBundledBuildContext,
+  isSandboxBuildContext,
+  resolveSandboxContextFromCandidates,
+  SANDBOX_BUILD_FILES,
 } from './sandboxImage.js';
 
 const originalEnv = {
@@ -75,4 +81,32 @@ test('configureSandboxImage updates runtime config', () => {
 
 test('isBundledBuildContext returns false for missing paths', () => {
   assert.equal(isBundledBuildContext('/tmp/airlock-missing-context'), false);
+});
+
+test('isSandboxBuildContext requires all sandbox build files', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'airlock-sandbox-context-'));
+  try {
+    assert.equal(isSandboxBuildContext(dir), false);
+
+    for (const file of SANDBOX_BUILD_FILES) {
+      writeFileSync(join(dir, file), file === 'Dockerfile' ? 'FROM scratch\n' : '# test\n');
+    }
+
+    assert.equal(isSandboxBuildContext(dir), true);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('resolveSandboxContextFromCandidates returns first complete context', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'airlock-sandbox-resolve-'));
+  try {
+    for (const file of SANDBOX_BUILD_FILES) {
+      writeFileSync(join(dir, file), '# test\n');
+    }
+
+    assert.equal(resolveSandboxContextFromCandidates(['/missing', dir]), dir);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

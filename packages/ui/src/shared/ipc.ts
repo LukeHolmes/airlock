@@ -21,6 +21,7 @@ export const IPC_CHANNELS = {
   GET_VERSION: 'airlock:system:get-version',
   GET_READINESS: 'airlock:system:get-readiness',
   VALIDATE_DROP: 'airlock:system:validate-drop',
+  ENSURE_SANDBOX_IMAGE: 'airlock:system:ensure-sandbox-image',
 } as const;
 
 // Type-safe channel names
@@ -77,6 +78,16 @@ export type AirlockReadiness = {
   canStartSession: boolean;
   setupRequired: boolean;
   pullCandidates: string[];
+  buildContext: {
+    available: boolean;
+    packaged: boolean;
+  };
+};
+
+export type EnsureSandboxImageResult = {
+  image: string;
+  source: 'local' | 'pulled' | 'bundled';
+  pulledRef?: string;
 };
 
 export type DropValidationErrorCode =
@@ -134,6 +145,7 @@ export interface AirlockIpcApi {
   getVersion(): Promise<string>;
   getReadiness(): Promise<AirlockReadiness>;
   validateDrop(filePath: string): Promise<DropValidationResult>;
+  ensureSandboxImage(): Promise<EnsureSandboxImageResult>;
   getPathForFile(file: File): string;
   onOpenFile(callback: (filePath: string) => void): () => void;
 }

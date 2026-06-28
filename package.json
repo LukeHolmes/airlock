@@ -10,6 +10,7 @@
     "dev": "pnpm --filter @airlock/ui electron:dev",
     "build": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build",
     "package": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build && electron-builder",
+    "prepackage": "node scripts/verify-sandbox-bundle.mjs",
     "sandbox:build": "docker build -t airlock/sandbox:latest ./packages/sandbox",
     "sandbox:smoke": "bash scripts/sandbox-smoke.sh",
     "core:smoke": "pnpm --filter @airlock/core build && node --import ./scripts/register-core.mjs scripts/core-smoke.mjs",
@@ -42,6 +43,20 @@
     "asarUnpack": [
       "**/node_modules/ssh2/**/*",
       "**/node_modules/cpu-features/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "packages/sandbox",
+        "to": "sandbox",
+        "filter": [
+          "Dockerfile",
+          "entrypoint.sh",
+          "supervisord.conf",
+          "launch-target.sh",
+          "start-kasmvnc.sh",
+          "cleanup.sh"
+        ]
+      }
     ],
     "mac": {
       "target": "dmg",
