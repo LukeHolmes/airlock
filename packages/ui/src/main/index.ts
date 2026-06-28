@@ -19,15 +19,18 @@ import {
   analyzeSession,
   validateDrop,
   configureSandboxImage,
+  ensureSandboxImageReady,
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { refreshReadiness } from './readiness.js';
+import { getSandboxBuildContextPath } from './sandboxContext.js';
 import {
   IPC_CHANNELS,
   type AirlockInput,
   type AirlockSession,
   type AirlockReadiness,
   type DropValidationResult,
+  type EnsureSandboxImageResult,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -276,6 +279,14 @@ function registerIpcHandlers(): void {
     IPC_CHANNELS.VALIDATE_DROP,
     async (_event, filePath: string): Promise<DropValidationResult> => {
       return validateDrop(filePath);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.ENSURE_SANDBOX_IMAGE,
+    async (): Promise<EnsureSandboxImageResult> => {
+      const buildContextPath = getSandboxBuildContextPath() ?? undefined;
+      return ensureSandboxImageReady({ buildContextPath });
     },
   );
 

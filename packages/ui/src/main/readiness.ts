@@ -4,6 +4,7 @@ import {
   LOCAL_SANDBOX_IMAGE,
 } from '@airlock/core';
 import { isDockerAvailable, refreshDockerAvailability } from './dockerCheck.js';
+import { getSandboxBuildContextPath, hasPackagedSandboxContext } from './sandboxContext.js';
 
 export type AirlockReadiness = {
   docker: { available: boolean };
@@ -11,6 +12,10 @@ export type AirlockReadiness = {
   canStartSession: boolean;
   setupRequired: boolean;
   pullCandidates: string[];
+  buildContext: {
+    available: boolean;
+    packaged: boolean;
+  };
 };
 
 export async function getReadiness(): Promise<AirlockReadiness> {
@@ -25,6 +30,7 @@ async function buildReadiness(): Promise<AirlockReadiness> {
   refreshDockerAvailability();
   const dockerAvailable = isDockerAvailable();
   const sandboxAvailable = dockerAvailable ? await isSandboxImageAvailable() : false;
+  const buildContextPath = getSandboxBuildContextPath();
 
   return {
     docker: { available: dockerAvailable },
@@ -32,5 +38,9 @@ async function buildReadiness(): Promise<AirlockReadiness> {
     canStartSession: dockerAvailable && sandboxAvailable,
     setupRequired: dockerAvailable && !sandboxAvailable,
     pullCandidates: dockerAvailable ? getSandboxImageCandidates() : [],
+    buildContext: {
+      available: buildContextPath !== null,
+      packaged: hasPackagedSandboxContext(),
+    },
   };
 }

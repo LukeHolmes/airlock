@@ -12,6 +12,7 @@ import {
   type AirlockSession,
   type AirlockReadiness,
   type DropValidationResult,
+  type EnsureSandboxImageResult,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -76,6 +77,10 @@ async function validateDrop(filePath: string): Promise<DropValidationResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.VALIDATE_DROP, filePath);
 }
 
+async function ensureSandboxImage(): Promise<EnsureSandboxImageResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.ENSURE_SANDBOX_IMAGE);
+}
+
 function onOpenFile(callback: (filePath: string) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
     callback(filePath);
@@ -97,6 +102,7 @@ const airlockApi: AirlockIpcApi = {
   getVersion,
   getReadiness,
   validateDrop,
+  ensureSandboxImage,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
 };

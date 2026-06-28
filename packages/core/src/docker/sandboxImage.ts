@@ -109,9 +109,22 @@ export function getSandboxImageCandidates(): string[] {
   return [...new Set(candidates)];
 }
 
+export function isSandboxBuildContext(buildContextPath: string): boolean {
+  return SANDBOX_BUILD_FILES.every((file) => fs.existsSync(path.join(buildContextPath, file)));
+}
+
+/** @deprecated Use isSandboxBuildContext */
 export function isBundledBuildContext(buildContextPath: string): boolean {
-  const dockerfilePath = path.join(buildContextPath, 'Dockerfile');
-  return fs.existsSync(dockerfilePath);
+  return isSandboxBuildContext(buildContextPath);
+}
+
+export function resolveSandboxContextFromCandidates(candidates: string[]): string | null {
+  for (const candidate of candidates) {
+    if (isSandboxBuildContext(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
 }
 
 function emitProgress(
@@ -290,7 +303,7 @@ export async function ensureSandboxImageReady(
     }
   }
 
-  if (buildContextPath && isBundledBuildContext(buildContextPath)) {
+  if (buildContextPath && isSandboxBuildContext(buildContextPath)) {
     try {
       await buildImageFromContext(docker, buildContextPath, onProgress);
 

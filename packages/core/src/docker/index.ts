@@ -40,6 +40,8 @@ export {
   getSandboxImageCandidates,
   getSandboxImageConfig,
   isBundledBuildContext,
+  isSandboxBuildContext,
+  resolveSandboxContextFromCandidates,
   type EnsureSandboxImageOptions,
   type EnsureSandboxImageResult,
   type SandboxImageConfig,
