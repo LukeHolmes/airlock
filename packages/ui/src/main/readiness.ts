@@ -1,10 +1,16 @@
-import { isSandboxImageAvailable, SANDBOX_IMAGE } from '@airlock/core';
+import {
+  getSandboxImageCandidates,
+  isSandboxImageAvailable,
+  LOCAL_SANDBOX_IMAGE,
+} from '@airlock/core';
 import { isDockerAvailable, refreshDockerAvailability } from './dockerCheck.js';
 
 export type AirlockReadiness = {
   docker: { available: boolean };
   sandboxImage: { available: boolean; image: string };
   canStartSession: boolean;
+  setupRequired: boolean;
+  pullCandidates: string[];
 };
 
 export async function getReadiness(): Promise<AirlockReadiness> {
@@ -22,7 +28,9 @@ async function buildReadiness(): Promise<AirlockReadiness> {
 
   return {
     docker: { available: dockerAvailable },
-    sandboxImage: { available: sandboxAvailable, image: SANDBOX_IMAGE },
+    sandboxImage: { available: sandboxAvailable, image: LOCAL_SANDBOX_IMAGE },
     canStartSession: dockerAvailable && sandboxAvailable,
+    setupRequired: dockerAvailable && !sandboxAvailable,
+    pullCandidates: dockerAvailable ? getSandboxImageCandidates() : [],
   };
 }

@@ -1,6 +1,10 @@
 import Dockerode from 'dockerode';
 
-export const SANDBOX_IMAGE = 'airlock/sandbox:latest';
+/** Local alias used by ContainerManager after provisioning. */
+export const LOCAL_SANDBOX_IMAGE = 'airlock/sandbox:latest';
+
+/** @deprecated Use LOCAL_SANDBOX_IMAGE — kept for backward compatibility. */
+export const SANDBOX_IMAGE = LOCAL_SANDBOX_IMAGE;
 
 let dockerClient: Dockerode | undefined;
 

@@ -12,7 +12,14 @@ import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession, validateDrop } from '@airlock/core';
+import {
+  docker,
+  executeAirlockSession,
+  destroyAirlockSession,
+  analyzeSession,
+  validateDrop,
+  configureSandboxImage,
+} from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { refreshReadiness } from './readiness.js';
 import {
@@ -31,6 +38,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const VERSION = '0.3.1';
+
+configureSandboxImage({ appVersion: VERSION });
 
 let mainWindow: BrowserWindow | null = null;
 

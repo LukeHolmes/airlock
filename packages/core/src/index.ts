@@ -15,10 +15,27 @@ export {
 } from './session/index.js';
 
 export {
+  LOCAL_SANDBOX_IMAGE,
   SANDBOX_IMAGE,
   isSandboxImageAvailable,
   getSandboxImageStatus,
 } from './docker/imageCheck.js';
+
+export {
+  SANDBOX_BUILD_FILES,
+  SandboxSetupError,
+  configureSandboxImage,
+  ensureSandboxImageReady,
+  getGhcrSandboxImageRef,
+  getSandboxImageCandidates,
+  getSandboxImageConfig,
+  isBundledBuildContext,
+  type EnsureSandboxImageOptions,
+  type EnsureSandboxImageResult,
+  type SandboxImageConfig,
+  type SandboxSetupErrorCode,
+  type SandboxSetupProgress,
+} from './docker/sandboxImage.js';
 
 export {
   MAX_DROP_FILE_BYTES,

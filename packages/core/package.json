@@ -17,7 +17,7 @@
     "dev": "echo 'core dev'",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test dist/validation/validateDrop.test.js"
+    "test": "pnpm build && node --test dist/validation/validateDrop.test.js dist/docker/sandboxImage.test.js"
   },
   "dependencies": {
     "dockerode": "^4.0.2",

@@ -75,6 +75,8 @@ export type AirlockReadiness = {
   docker: { available: boolean };
   sandboxImage: { available: boolean; image: string };
   canStartSession: boolean;
+  setupRequired: boolean;
+  pullCandidates: string[];
 };
 
 export type DropValidationErrorCode =
