@@ -20,6 +20,13 @@ export {
   getSandboxImageStatus,
 } from './docker/imageCheck.js';
 
+export {
+  MAX_DROP_FILE_BYTES,
+  validateDrop,
+  type DropValidationErrorCode,
+  type DropValidationResult,
+} from './validation/index.js';
+
 export type {
   AirlockInput,
   AirlockSession,

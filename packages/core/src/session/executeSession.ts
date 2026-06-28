@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
-import fs from 'node:fs';
 
 import { createFileContainer, createUrlContainer, destroyContainer } from '../docker/index.js';
+import { validateDrop, type DropValidationResult } from '../validation/validateDrop.js';
 import { registerSessionRecord, updateSessionRecord } from './artefacts.js';
 import { debugLog } from './debug.js';
 import { logEvent } from './logger.js';
@@ -40,37 +40,41 @@ function errorSession(
   };
 }
 
-function validateInput(input: AirlockInput, networkMode: NetworkMode): string | null {
+function validateInput(
+  input: AirlockInput,
+  networkMode: NetworkMode,
+): { error: string | null; dropValidation?: DropValidationResult } {
   if (input.type === 'url') {
     if (networkMode !== 'enabled') {
-      return 'URL sessions require network access';
+      return { error: 'URL sessions require network access' };
     }
 
     if (!input.url || input.url.trim().length === 0) {
-      return 'url is required';
+      return { error: 'url is required' };
     }
 
     try {
       const urlObj = new URL(input.url);
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
-        return `Invalid URL protocol: ${urlObj.protocol}`;
+        return { error: `Invalid URL protocol: ${urlObj.protocol}` };
       }
     } catch {
-      return 'Invalid URL';
+      return { error: 'Invalid URL' };
     }
 
-    return null;
+    return { error: null };
   }
 
   if (!input.filePath || input.filePath.trim().length === 0) {
-    return 'filePath is required';
+    return { error: 'filePath is required' };
   }
 
-  if (!fs.existsSync(input.filePath)) {
-    return `File not found: ${input.filePath}`;
+  const dropValidation = validateDrop(input.filePath);
+  if (!dropValidation.ok) {
+    return { error: dropValidation.message, dropValidation };
   }
 
-  return null;
+  return { error: null, dropValidation };
 }
 
 /**
@@ -93,12 +97,19 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
 
   debugLog('executeAirlockSession start', { sessionId, inputType, networkMode });
 
+  const { error: validationError, dropValidation } = validateInput(input, networkMode);
+
   logEvent('INPUT_RECEIVED', {
     sessionId,
     type: input.type,
     networkMode,
     ...(input.type === 'file'
-      ? { filePath: input.filePath, mimeType: input.mimeType }
+      ? {
+          filePath: input.filePath,
+          mimeType:
+            input.mimeType ??
+            (dropValidation?.ok ? dropValidation.mimeType : undefined),
+        }
       : { url: input.url }),
   });
 
@@ -108,7 +119,6 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
     logEvent('URL_SESSION_REQUESTED', { sessionId, url: input.url, networkMode });
   }
 
-  const validationError = validateInput(input, networkMode);
   if (validationError) {
     debugLog('executeAirlockSession validation failed', { sessionId, validationError });
     logEvent('SESSION_ERROR', { sessionId, error: validationError, networkMode });

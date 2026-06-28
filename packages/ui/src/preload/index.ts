@@ -11,6 +11,7 @@ import {
   type AirlockInput,
   type AirlockSession,
   type AirlockReadiness,
+  type DropValidationResult,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -71,6 +72,10 @@ async function getReadiness(): Promise<AirlockReadiness> {
   return ipcRenderer.invoke(IPC_CHANNELS.GET_READINESS);
 }
 
+async function validateDrop(filePath: string): Promise<DropValidationResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.VALIDATE_DROP, filePath);
+}
+
 function onOpenFile(callback: (filePath: string) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
     callback(filePath);
@@ -91,6 +96,7 @@ const airlockApi: AirlockIpcApi = {
   installCrashTrap,
   getVersion,
   getReadiness,
+  validateDrop,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
 };

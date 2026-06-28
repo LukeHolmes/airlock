@@ -15,6 +15,7 @@
     "core:smoke": "pnpm --filter @airlock/core build && node --import ./scripts/register-core.mjs scripts/core-smoke.mjs",
     "pretest:smoke": "pnpm build && pnpm sandbox:build",
     "typecheck": "pnpm --filter @airlock/core typecheck && pnpm --filter @airlock/ui typecheck",
+    "test": "pnpm --filter @airlock/core test",
     "lint": "eslint packages/core/src packages/ui/src --ext .ts,.tsx --ignore-pattern '**/_ref/**'",
     "lint:fix": "eslint packages/*/src --ext .ts,.tsx --fix --ignore-pattern '**/_ref/**'",
     "format": "prettier --write 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
