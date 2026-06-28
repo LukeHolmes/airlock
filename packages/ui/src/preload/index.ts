@@ -10,6 +10,7 @@ import {
   type AirlockIpcApi,
   type AirlockInput,
   type AirlockSession,
+  type AirlockReadiness,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -66,6 +67,10 @@ async function getVersion(): Promise<string> {
   return ipcRenderer.invoke(IPC_CHANNELS.GET_VERSION);
 }
 
+async function getReadiness(): Promise<AirlockReadiness> {
+  return ipcRenderer.invoke(IPC_CHANNELS.GET_READINESS);
+}
+
 function onOpenFile(callback: (filePath: string) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
     callback(filePath);
@@ -85,6 +90,7 @@ const airlockApi: AirlockIpcApi = {
   onSessionError,
   installCrashTrap,
   getVersion,
+  getReadiness,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
 };

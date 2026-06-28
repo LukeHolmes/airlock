@@ -5,6 +5,7 @@ import VncViewer from './VncViewer';
 import type {
   AirlockInput,
   AirlockSession,
+  AirlockReadiness,
   SessionAnalysisResult,
   SessionStartedEvent,
   SessionEndedEvent,
@@ -39,8 +40,11 @@ export default function AirlockApp() {
   const [networkEnabled, setNetworkEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<SessionAnalysisResult | null>(null);
+  const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
+  const [showSetup, setShowSetup] = useState(false);
 
   const viewState = viewStateFromSession(session);
+  const canStartSession = readiness?.canStartSession ?? false;
 
   const startIgnitionLogs = useCallback((inputType: 'file' | 'url' = 'file') => {
     setLogs([]);
@@ -88,6 +92,16 @@ export default function AirlockApp() {
         return;
       }
 
+      if (!canStartSession) {
+        if (!readiness?.docker.available) {
+          setError('Airlock requires Docker Desktop to run sandboxes.');
+        } else {
+          setError('Sandbox image not found. See setup instructions.');
+          setShowSetup(true);
+        }
+        return;
+      }
+
       const cleanup = startIgnitionLogs(input.type);
 
       setSession({
@@ -123,7 +137,7 @@ export default function AirlockApp() {
         cleanup();
       }
     },
-    [startIgnitionLogs],
+    [startIgnitionLogs, canStartSession, readiness],
   );
 
   const handleFilePath = useCallback(
@@ -175,8 +189,20 @@ export default function AirlockApp() {
     [handleFilePath],
   );
 
+  const handleRecheckReadiness = useCallback(async () => {
+    if (!ipc) return;
+    const next = await ipc.getReadiness();
+    setReadiness(next);
+    if (next.canStartSession) {
+      setError(null);
+      setShowSetup(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!ipc) return;
+
+    void ipc.getReadiness().then(setReadiness);
 
     ipc.installCrashTrap().catch((err: unknown) => {
       console.error('Failed to install crash trap:', err);
@@ -247,8 +273,9 @@ export default function AirlockApp() {
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
+    if (!canStartSession) return;
     setIsDragging(true);
-  }, []);
+  }, [canStartSession]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -259,11 +286,10 @@ export default function AirlockApp() {
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-      if (e.dataTransfer.files?.length) {
-        void handleFileDrop(e.dataTransfer.files[0]);
-      }
+      if (!canStartSession || !e.dataTransfer.files?.length) return;
+      void handleFileDrop(e.dataTransfer.files[0]);
     },
-    [handleFileDrop],
+    [canStartSession, handleFileDrop],
   );
 
   return (
@@ -315,13 +341,96 @@ export default function AirlockApp() {
         </div>
       </header>
 
+      {readiness && !readiness.canStartSession && viewState === 'idle' && (
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-4">
+          <div
+            className={`rounded-[6px] px-4 py-3 flex items-center justify-between gap-3 border ${
+              !readiness.docker.available
+                ? 'bg-[#F23D3D]/10 border-[#F23D3D]/30'
+                : 'bg-[#FF6A2B]/10 border-[#FF6A2B]/30'
+            }`}
+          >
+            <span
+              className={`text-[13px] ${
+                !readiness.docker.available ? 'text-[#F23D3D]' : 'text-[#FF6A2B]'
+              }`}
+            >
+              {!readiness.docker.available
+                ? 'Docker is required to run sandboxes.'
+                : `Sandbox image missing (${readiness.sandboxImage.image}).`}
+            </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {readiness.docker.available && (
+                <button
+                  type="button"
+                  onClick={() => setShowSetup(true)}
+                  className="px-2.5 py-1 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[11px] font-mono text-[#ECEFF3]"
+                >
+                  Show Setup
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void handleRecheckReadiness()}
+                className="px-2.5 py-1 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[11px] font-mono text-[#ECEFF3]"
+              >
+                Re-check
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20">
+        <div className={`absolute left-1/2 -translate-x-1/2 z-20 ${readiness && !readiness.canStartSession && viewState === 'idle' ? 'top-28' : 'top-14'}`}>
           <div className="bg-[#F23D3D]/10 border border-[#F23D3D]/30 rounded-[6px] px-4 py-2 flex items-center gap-3">
             <span className="text-[#F23D3D] text-[13px]">{error}</span>
             <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">
               ×
             </button>
+          </div>
+        </div>
+      )}
+
+      {showSetup && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-30 p-4">
+          <div className="bg-[#12151A] border border-[#23272F] rounded-[8px] p-4 max-w-lg w-full">
+            <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-3">Sandbox Setup</h3>
+            <p className="text-[13px] text-[#AAB3BE] mb-4 leading-relaxed">
+              Airlock needs the <code className="font-mono">airlock/sandbox:latest</code> Docker
+              image before sessions can run.
+            </p>
+            <div className="text-[12px] font-mono text-[#AAB3BE] space-y-3 mb-4">
+              <div>
+                <p className="text-[#7E8B9A] uppercase mb-1">Developers</p>
+                <p>pnpm sandbox:build</p>
+              </div>
+              <div>
+                <p className="text-[#7E8B9A] uppercase mb-1">Installed app</p>
+                <p>docker build -t airlock/sandbox:latest ./packages/sandbox</p>
+              </div>
+              <div>
+                <p className="text-[#7E8B9A] uppercase mb-1">Verify</p>
+                <p>docker images airlock/sandbox:latest</p>
+                <p className="mt-1">docker ps --filter label=app.airlock.managed=true</p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => void handleRecheckReadiness()}
+                className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-mono"
+              >
+                Re-check
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSetup(false)}
+                className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] font-mono text-[#ECEFF3]"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -397,6 +506,7 @@ export default function AirlockApp() {
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 className={`relative flex flex-col items-center justify-center h-80 rounded-[10px] border transition-all duration-200 ease-out
+                  ${!canStartSession ? 'opacity-50 pointer-events-none' : ''}
                   ${
                     isDragging
                       ? 'border-[#3DE8D4] bg-[#3DE8D4]/5 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)]'
@@ -467,12 +577,12 @@ export default function AirlockApp() {
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://example.com/document.pdf"
-                  disabled={viewState !== 'idle' || !ipc}
+                  disabled={viewState !== 'idle' || !ipc || !canStartSession}
                   className="w-full bg-[#12151A] border border-[#23272F] rounded-[6px] py-3 pl-10 pr-24 text-[13px] font-mono text-[#AAB3BE] placeholder-[#474E58] focus:outline-none focus:border-[#3DE8D4]/50 disabled:opacity-50"
                 />
                 <button
                   type="submit"
-                  disabled={viewState !== 'idle' || !ipc || !urlInput.trim()}
+                  disabled={viewState !== 'idle' || !ipc || !urlInput.trim() || !canStartSession}
                   className="absolute inset-y-1 right-1 px-4 bg-[#3DE8D4] hover:bg-[#28D3BF] disabled:bg-[#333944] disabled:text-[#6E7782] text-[#04201D] disabled:cursor-not-allowed text-[13px] font-medium font-sans rounded-[4px] flex items-center gap-2 transition-colors"
                 >
                   <Zap size={14} />

@@ -13,11 +13,13 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { docker, executeAirlockSession, destroyAirlockSession, analyzeSession } from '@airlock/core';
-import { DOCKER_DOWNLOAD_URL, isDockerAvailable, refreshDockerAvailability } from './dockerCheck.js';
+import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
+import { refreshReadiness } from './readiness.js';
 import {
   IPC_CHANNELS,
   type AirlockInput,
   type AirlockSession,
+  type AirlockReadiness,
   type SessionAnalysisResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -47,17 +49,38 @@ async function notifyDockerUnavailable(): Promise<void> {
   }
 }
 
-async function ensureDockerNotice(): Promise<void> {
-  refreshDockerAvailability();
-  if (!isDockerAvailable()) {
+async function notifySandboxImageMissing(): Promise<void> {
+  await dialog.showMessageBox({
+    type: 'warning',
+    title: 'Sandbox Setup Required',
+    message: 'The Airlock sandbox image is not installed.',
+    detail:
+      'Build airlock/sandbox:latest before creating sessions.\n\nDevelopers: pnpm sandbox:build\n\nVerify: docker images airlock/sandbox:latest',
+    buttons: ['Continue'],
+    defaultId: 0,
+  });
+}
+
+async function ensureReadinessNotice(): Promise<void> {
+  const readiness = await refreshReadiness();
+
+  if (!readiness.docker.available) {
     await notifyDockerUnavailable();
+    return;
+  }
+
+  if (!readiness.sandboxImage.available) {
+    await notifySandboxImageMissing();
   }
 }
 
-function buildDockerUnavailableSession(input: AirlockInput): AirlockSession {
+function buildUnavailableSession(
+  input: AirlockInput,
+  sessionId: string,
+): AirlockSession {
   const now = Date.now();
   return {
-    sessionId: 'docker-unavailable',
+    sessionId,
     containerId: '',
     status: 'error',
     metadata: {
@@ -68,6 +91,14 @@ function buildDockerUnavailableSession(input: AirlockInput): AirlockSession {
       networkMode: input.type === 'url' ? 'enabled' : (input.networkMode ?? 'isolated'),
     },
   };
+}
+
+function buildDockerUnavailableSession(input: AirlockInput): AirlockSession {
+  return buildUnavailableSession(input, 'docker-unavailable');
+}
+
+function buildSandboxUnavailableSession(input: AirlockInput): AirlockSession {
+  return buildUnavailableSession(input, 'sandbox-unavailable');
 }
 
 function configureSessionForLocalVnc(): void {
@@ -166,9 +197,20 @@ function registerIpcHandlers(): void {
     async (_event, input: AirlockInput): Promise<AirlockSession> => {
       console.log(`[ipc] executeAirlockSession type=${input.type}`);
 
-      if (!isDockerAvailable()) {
+      const readiness = await refreshReadiness();
+
+      if (!readiness.docker.available) {
         const error = buildDockerUnavailableSession(input);
         emitSessionError(error, 'Airlock requires Docker Desktop to run sandboxes.');
+        return error;
+      }
+
+      if (!readiness.sandboxImage.available) {
+        const error = buildSandboxUnavailableSession(input);
+        emitSessionError(
+          error,
+          'Sandbox image not found. Build it with: pnpm sandbox:build',
+        );
         return error;
       }
 
@@ -216,6 +258,10 @@ function registerIpcHandlers(): void {
     return VERSION;
   });
 
+  ipcMain.handle(IPC_CHANNELS.GET_READINESS, async (): Promise<AirlockReadiness> => {
+    return refreshReadiness();
+  });
+
   console.log('[main] IPC handlers registered');
 }
 
@@ -227,7 +273,7 @@ app.whenReady().then(async () => {
   docker.installCrashTrap();
 
   mainWindow = createMainWindow();
-  void ensureDockerNotice();
+  void ensureReadinessNotice();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

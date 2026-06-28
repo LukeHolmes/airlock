@@ -20,6 +20,17 @@ export {
 } from './ContainerManager.js';
 
 export {
+  AIRLOCK_ISOLATED_NETWORK,
+  ensureIsolatedNetwork,
+} from './network.js';
+
+export {
+  SANDBOX_IMAGE,
+  isSandboxImageAvailable,
+  getSandboxImageStatus,
+} from './imageCheck.js';
+
+export {
   AIRLOCK_SECCOMP_PROFILE,
   serializeSeccompProfile,
   type SeccompProfile,
