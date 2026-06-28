@@ -19,6 +19,7 @@ export const IPC_CHANNELS = {
   // System
   INSTALL_CRASH_TRAP: 'airlock:system:install-crash-trap',
   GET_VERSION: 'airlock:system:get-version',
+  GET_READINESS: 'airlock:system:get-readiness',
 } as const;
 
 // Type-safe channel names
@@ -69,6 +70,12 @@ export type SessionAnalysisResult = {
   };
 };
 
+export type AirlockReadiness = {
+  docker: { available: boolean };
+  sandboxImage: { available: boolean; image: string };
+  canStartSession: boolean;
+};
+
 export interface SessionStartedEvent {
   session: AirlockSession;
 }
@@ -95,6 +102,7 @@ export interface AirlockIpcApi {
 
   installCrashTrap(): Promise<void>;
   getVersion(): Promise<string>;
+  getReadiness(): Promise<AirlockReadiness>;
   getPathForFile(file: File): string;
   onOpenFile(callback: (filePath: string) => void): () => void;
 }

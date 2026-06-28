@@ -14,6 +14,12 @@ export {
   analyzeSession,
 } from './session/index.js';
 
+export {
+  SANDBOX_IMAGE,
+  isSandboxImageAvailable,
+  getSandboxImageStatus,
+} from './docker/imageCheck.js';
+
 export type {
   AirlockInput,
   AirlockSession,
