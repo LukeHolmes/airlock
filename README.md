@@ -141,49 +141,22 @@ Capabilities are dropped (`--cap-drop ALL`). A custom seccomp profile is applied
 
 ## First-Run Setup
 
-Airlock is **not zero-config yet**. Before your first session you need Docker running and the sandbox image built locally.
+Airlock requires **Docker Desktop** (or Docker Engine on Linux). The sandbox image is provisioned automatically when possible:
 
-### 1. Install dependencies
+1. **GHCR pull** — `ghcr.io/lukeholmes/airlock-sandbox:<version>` (after first release tag is published)
+2. **Bundled build fallback** — packaged apps include the sandbox Dockerfile in `resources/sandbox/`
+3. **Manual dev build** — `pnpm sandbox:build` for local development
+
+On first launch, use **Re-check** in the app or call setup via the `ENSURE_SANDBOX_IMAGE` IPC path. Auto-setup on startup (progress UI) is planned for v0.4.
+
+### Developers
 
 ```bash
 pnpm install
-```
-
-### 2. Build the app
-
-```bash
 pnpm build
+pnpm sandbox:build    # or rely on ENSURE_SANDBOX_IMAGE / GHCR pull
+pnpm dev              # HMR dev workflow
 ```
-
-### 3. Build the sandbox image (required)
-
-```bash
-pnpm sandbox:build
-```
-
-This produces `airlock/sandbox:latest`. Airlock checks for this image at startup and blocks session creation until it exists. The in-app setup modal shows these commands if the image is missing.
-
-Verify:
-
-```bash
-docker images airlock/sandbox:latest
-```
-
-### 4. Run Airlock
-
-**Development (HMR + hot reload):**
-
-```bash
-pnpm dev
-```
-
-**Production-style run:**
-
-```bash
-cd packages/ui && pnpm start
-```
-
-Drop a PDF onto the window to open it in an isolated container. Click **Destroy workspace** when done.
 
 ---
 
@@ -221,9 +194,9 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 
 ---
 
-## Status (v0.3.1)
+## Status (v0.3.1+)
 
-> Functional for local development and manual testing. Not yet a polished end-user product.
+> Core sandbox loop works end-to-end. Packaging and zero-config infrastructure landed; polish and v0.4 features in progress.
 
 **Working today**
 
@@ -234,19 +207,26 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 - [x] Garbage collection & crash trap hooks
 - [x] Air-gapped network mode (default) + per-session network toggle
 - [x] URL session support (network opt-in)
-- [x] Session artefact capture + lightweight analysis
-- [x] Desktop packaging (`pnpm package`)
+- [x] Session artefact capture + lightweight analysis (in-memory)
+- [x] Desktop packaging (`pnpm package`) + bundled sandbox build context
 - [x] Fast dev workflow (`pnpm dev`)
 - [x] First-run readiness checks (Docker + sandbox image)
 - [x] Drop validation with MIME sniff
+- [x] Sandbox image resolution (`ensureSandboxImageReady` — pull / build)
+- [x] GHCR publish workflow (on `v*` tags)
+
+**In progress / v0.4**
+
+- [ ] Auto-setup UX on first launch (progress UI)
+- [ ] App icon for installers
+- [ ] End-user setup docs (`docs/`)
+- [ ] Persistent artefact storage + export
 
 **Still open**
 
-- [ ] Zero-config install (bundled sandbox image in the installer)
 - [ ] AppArmor enforcement
-- [ ] Export / save session artefacts to disk
-- [ ] Published sandbox image (e.g. GHCR) for skip-local-build installs
-- [ ] MIME sniffing via dedicated library (current implementation uses inline magic-byte rules)
+- [ ] Code signing / notarization
+- [ ] MIME sniffing via dedicated library
 
 ---
 
