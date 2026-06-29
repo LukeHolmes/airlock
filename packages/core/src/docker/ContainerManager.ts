@@ -17,6 +17,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import Dockerode from 'dockerode';
+import { log } from '../debug/logger.js';
 import { ensureIsolatedNetwork } from './network.js';
 import { serializeSeccompProfile } from './seccomp.js';
 
@@ -181,7 +182,11 @@ export function violentGarbageCollect(): void {
     return;
   }
 
-  console.error(`[airlock] Violent GC: destroying ${sessions.length} container(s)`);
+  log('ERROR', 'Violent garbage collection triggered', {
+    eventName: 'container.gc.triggered',
+    phase: 'destroy',
+    containerCount: sessions.length,
+  });
 
   for (const session of sessions) {
     try {
@@ -198,9 +203,21 @@ export function violentGarbageCollect(): void {
       }
 
       registry.unregister(session.id);
-      console.error(`[airlock] Destroyed container ${session.name} (${session.id.slice(0, 12)})`);
+      log('INFO', 'Violent GC destroyed container', {
+        eventName: 'container.gc.removed',
+        phase: 'destroy',
+        sessionId: session.id,
+        containerId: session.id,
+        port: parseHostPort(session.vncUrl),
+      });
     } catch (e) {
-      console.error(`[airlock] Failed to destroy container ${session.name}:`, e);
+      log('ERROR', 'Violent GC failed to destroy container', {
+        eventName: 'container.gc.failed',
+        phase: 'destroy',
+        sessionId: session.id,
+        containerId: session.id,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 }
@@ -225,6 +242,19 @@ async function resolveContainerNetworkMode(
   }
 
   return 'none';
+}
+
+function parseHostPort(vncUrl?: string): number | undefined {
+  if (!vncUrl) {
+    return undefined;
+  }
+
+  try {
+    const port = Number(new URL(vncUrl).port);
+    return Number.isFinite(port) ? port : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function resolveVncUrls(info: Dockerode.ContainerInspectInfo): {
@@ -316,6 +346,13 @@ function buildHostConfig(
 export async function createContainer(config: AirlockContainerConfig): Promise<ContainerSession> {
   const docker = getDocker();
 
+  log('INFO', 'createContainer start', {
+    eventName: 'container.create.start',
+    phase: 'create',
+    sessionId: config.name,
+    containerName: config.name,
+  });
+
   await ensureImageExists(docker, config.image);
 
   const envArray = Object.entries(config.env ?? {}).map(([key, value]) => `${key}=${value}`);
@@ -341,6 +378,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     StdinOnce: false,
     Labels: {
       'app.airlock.managed': 'true',
+      'airlock_session': 'true',
       'app.airlock.session': config.name,
       'app.airlock.created': new Date().toISOString(),
     },
@@ -355,11 +393,58 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
   }
 
   const container = await docker.createContainer(createOptions);
+
+  log('INFO', 'Container created', {
+    eventName: 'container.create.created',
+    phase: 'create',
+    sessionId: container.id,
+    containerId: container.id,
+  });
+
   await container.start();
+
+  log('INFO', 'Container started', {
+    eventName: 'container.start.started',
+    phase: 'start',
+    sessionId: container.id,
+    containerId: container.id,
+  });
+
+  log('DEBUG', 'Container environment configured', {
+    eventName: 'container.start.env',
+    phase: 'start',
+    sessionId: container.id,
+    containerId: container.id,
+    targetFile: config.env?.TARGET_FILE ?? '',
+    targetUrl: config.env?.TARGET_URL ?? '',
+  });
+
+  const inspectAfterStart = await container.inspect();
+  const initialUrls = resolveVncUrls(inspectAfterStart);
+  const initialPort = parseHostPort(initialUrls.vncUrl);
+
+  log('INFO', 'Port binding resolved', {
+    eventName: 'container.start.port',
+    phase: 'start',
+    sessionId: container.id,
+    containerId: container.id,
+    port: initialPort,
+    hostPort: initialPort,
+  });
 
   const { vncUrl, vncPageUrl } = config.publishVnc
     ? await waitForVncReady(container)
-    : resolveVncUrls(await container.inspect());
+    : initialUrls;
+
+  log('INFO', 'VNC URL generated', {
+    eventName: 'container.vnc.ready',
+    phase: 'vnc',
+    sessionId: container.id,
+    containerId: container.id,
+    port: parseHostPort(vncUrl),
+    vncUrl,
+    vncPageUrl,
+  });
 
   const info = await container.inspect();
 
@@ -373,26 +458,52 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
   };
   registry.register(session);
 
-  console.log(
-    `[airlock] Created container ${config.name} (${session.id.slice(0, 12)})` +
-      (vncUrl ? ` vnc=${vncUrl}` : ''),
-  );
+  log('INFO', 'Container session registered', {
+    eventName: 'container.create.complete',
+    phase: 'create',
+    sessionId: session.id,
+    containerId: session.id,
+    port: parseHostPort(vncUrl),
+  });
 
   return session;
 }
 
 export async function destroyContainer(sessionId: string): Promise<void> {
   if (!registry.has(sessionId)) {
-    console.warn(`[airlock] Container ${sessionId} not in registry — may be already destroyed`);
+    log('WARN', 'Container not in registry — may be already destroyed', {
+      eventName: 'container.destroy.missing',
+      phase: 'destroy',
+      sessionId,
+      containerId: sessionId,
+    });
   }
+
+  log('INFO', 'Destroy requested', {
+    eventName: 'container.destroy.requested',
+    phase: 'destroy',
+    sessionId,
+    containerId: sessionId,
+  });
 
   const docker = getDocker();
   const container = docker.getContainer(sessionId);
 
   try {
     await container.stop({ t: 10 });
+    log('INFO', 'Container stopped', {
+      eventName: 'container.destroy.stopped',
+      phase: 'destroy',
+      sessionId,
+      containerId: sessionId,
+    });
   } catch {
-    console.log(`[airlock] Stop failed for ${sessionId}, attempting kill`);
+    log('WARN', 'Container stop failed, attempting kill', {
+      eventName: 'container.destroy.stop_failed',
+      phase: 'destroy',
+      sessionId,
+      containerId: sessionId,
+    });
     try {
       await container.kill();
     } catch {
@@ -402,13 +513,23 @@ export async function destroyContainer(sessionId: string): Promise<void> {
 
   try {
     await container.remove({ force: true, v: true });
+    log('INFO', 'Container removed', {
+      eventName: 'container.destroy.removed',
+      phase: 'destroy',
+      sessionId,
+      containerId: sessionId,
+    });
   } catch (e: unknown) {
-    console.warn(`[airlock] Container removal failed for ${sessionId}:`, e);
+    log('WARN', 'Container removal failed', {
+      eventName: 'container.destroy.remove_failed',
+      phase: 'destroy',
+      sessionId,
+      containerId: sessionId,
+      error: e instanceof Error ? e.message : String(e),
+    });
   }
 
   registry.unregister(sessionId);
-
-  console.log(`[airlock] Destroyed container ${sessionId.slice(0, 12)}`);
 }
 
 export async function killContainer(sessionId: string): Promise<void> {
