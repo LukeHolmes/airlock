@@ -20,6 +20,7 @@ import {
   validateDrop,
   configureSandboxImage,
   ensureSandboxImageReady,
+  log,
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
@@ -42,6 +43,34 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const VERSION = '0.3.1';
+
+function parseSessionPort(session: AirlockSession): number | undefined {
+  if (!session.vncUrl) {
+    return undefined;
+  }
+
+  try {
+    const port = Number(new URL(session.vncUrl).port);
+    return Number.isFinite(port) ? port : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function logSessionEvent(
+  eventName: 'session:start' | 'session:ready' | 'session:error' | 'session:destroy',
+  session: AirlockSession,
+  extra?: Record<string, unknown>,
+): void {
+  log('INFO', eventName, {
+    eventName,
+    sessionId: session.sessionId,
+    containerId: session.containerId,
+    port: parseSessionPort(session),
+    status: session.status,
+    ...extra,
+  });
+}
 
 function getAppIconPath(): string {
   if (app.isPackaged) {
@@ -291,12 +320,14 @@ function registerIpcHandlers(): void {
 
       if (!readiness.docker.available) {
         const error = buildDockerUnavailableSession(input);
+        logSessionEvent('session:error', error, { reason: 'docker_unavailable' });
         emitSessionError(error, 'Airlock requires Docker Desktop to run sandboxes.');
         return error;
       }
 
       if (!readiness.sandboxImage.available) {
         const error = buildSandboxUnavailableSession(input);
+        logSessionEvent('session:error', error, { reason: 'sandbox_image_missing' });
         emitSessionError(
           error,
           'Sandbox is not set up. Open the setup window and click Set up sandbox.',
@@ -304,11 +335,18 @@ function registerIpcHandlers(): void {
         return error;
       }
 
+      log('INFO', 'session:start', {
+        eventName: 'session:start',
+        inputType: input.type,
+      });
+
       const result = await executeAirlockSession(input);
 
       if (result.status === 'running') {
+        logSessionEvent('session:ready', result);
         emitSessionStarted(result);
       } else if (result.status === 'error') {
+        logSessionEvent('session:error', result, { reason: 'session_start_failed' });
         emitSessionError(result, 'Session failed to start');
       }
 
@@ -320,6 +358,7 @@ function registerIpcHandlers(): void {
     IPC_CHANNELS.SESSION_DESTROY,
     async (_event, activeSession: AirlockSession): Promise<AirlockSession> => {
       console.log(`[ipc] destroyAirlockSession ${activeSession.sessionId.slice(0, 12)}`);
+      logSessionEvent('session:destroy', activeSession);
       const result = await destroyAirlockSession(activeSession);
 
       if (result.status === 'destroyed') {

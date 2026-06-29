@@ -6,6 +6,8 @@
 
 export * as docker from './docker/index.js';
 
+export { log, type LogLevel, type DebugLogContext, type DebugPhase } from './debug/logger.js';
+
 export {
   executeAirlockSession,
   destroyAirlockSession,
