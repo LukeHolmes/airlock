@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import Dockerode from 'dockerode';
 import { ensureIsolatedNetwork } from './network.js';
+import { detectRuntimeBinary, detectRuntimeSocket } from './runtime.js';
 import { serializeSeccompProfile } from './seccomp.js';
 
 // Lazily loaded dockerode to avoid side effects at module load time
@@ -27,7 +28,8 @@ const VNC_CONTAINER_PORT = '6901/tcp';
 
 function getDocker(): Dockerode {
   if (!dockerClient) {
-    dockerClient = new Dockerode();
+    const { socketPath } = detectRuntimeSocket();
+    dockerClient = new Dockerode({ socketPath });
   }
   return dockerClient;
 }
@@ -181,18 +183,30 @@ export function violentGarbageCollect(): void {
     return;
   }
 
+  let bin = 'docker';
+  try {
+    bin = detectRuntimeSocket().runtime;
+  } catch {
+    try {
+      bin = detectRuntimeBinary();
+    } catch {
+      // crash path — binary detection failed, fall back to 'docker'
+      // do not rethrow: we are already handling a process exit
+    }
+  }
+
   console.error(`[airlock] Violent GC: destroying ${sessions.length} container(s)`);
 
   for (const session of sessions) {
     try {
       try {
-        execSync(`docker kill ${session.id} 2>/dev/null`, { timeout: 5000 });
+        execSync(`${bin} kill ${session.id} 2>/dev/null`, { timeout: 5000 });
       } catch {
         // Ignore errors — container may already be dead
       }
 
       try {
-        execSync(`docker rm -f ${session.id} 2>/dev/null`, { timeout: 5000 });
+        execSync(`${bin} rm -f ${session.id} 2>/dev/null`, { timeout: 5000 });
       } catch {
         // Ignore errors — container may already be removed
       }

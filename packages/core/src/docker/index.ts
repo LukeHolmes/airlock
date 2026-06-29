@@ -57,3 +57,5 @@ export {
   type SeccompArch,
   type SeccompArg,
 } from './seccomp.js';
+
+export * from './runtime.js';

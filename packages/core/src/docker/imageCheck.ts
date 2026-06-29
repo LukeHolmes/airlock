@@ -1,5 +1,7 @@
 import Dockerode from 'dockerode';
 
+import { detectRuntimeSocket } from './runtime.js';
+
 /** Local alias used by ContainerManager after provisioning. */
 export const LOCAL_SANDBOX_IMAGE = 'airlock/sandbox:latest';
 
@@ -10,7 +12,8 @@ let dockerClient: Dockerode | undefined;
 
 function getDocker(): Dockerode {
   if (!dockerClient) {
-    dockerClient = new Dockerode();
+    const { socketPath } = detectRuntimeSocket();
+    dockerClient = new Dockerode({ socketPath });
   }
   return dockerClient;
 }
