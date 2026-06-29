@@ -34,6 +34,7 @@
     },
     "files": [
       "dist/**/*",
+      "build/icons/icon.png",
       "package.json",
       "!**/_ref/**",
       "!src/**",
@@ -56,18 +57,27 @@
           "start-kasmvnc.sh",
           "cleanup.sh"
         ]
+      },
+      {
+        "from": "packages/ui/build/icons",
+        "to": "icons",
+        "filter": ["icon.png"]
       }
     ],
+    "icon": "packages/ui/build/icons/icon.png",
     "mac": {
       "target": "dmg",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "icon": "packages/ui/build/icons/icon.icns"
     },
     "win": {
-      "target": "nsis"
+      "target": "nsis",
+      "icon": "packages/ui/build/icons/icon.ico"
     },
     "linux": {
       "target": "AppImage",
-      "category": "Utility"
+      "category": "Utility",
+      "icon": "packages/ui/build/icons/icon.png"
     }
   },
   "devDependencies": {

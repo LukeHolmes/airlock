@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Airlock">
+  <rect width="512" height="512" fill="#08090B"/>
+  <rect x="72" y="72" width="368" height="368" rx="56" ry="56" fill="none" stroke="#3DE8D4" stroke-width="36"/>
+  <rect x="136" y="136" width="240" height="240" rx="28" ry="28" fill="#0C0E11" stroke="#23272F" stroke-width="8"/>
+  <rect x="136" y="244" width="240" height="24" fill="#3DE8D4"/>
+  <polygon points="256,168 320,256 256,344 192,256" fill="#3DE8D4"/>
+  <rect x="136" y="136" width="32" height="32" fill="#3DE8D4"/>
+  <rect x="344" y="136" width="32" height="32" fill="#3DE8D4"/>
+  <rect x="136" y="344" width="32" height="32" fill="#3DE8D4"/>
+  <rect x="344" y="344" width="32" height="32" fill="#3DE8D4"/>
+</svg>
