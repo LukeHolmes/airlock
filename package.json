@@ -56,6 +56,11 @@
           "start-kasmvnc.sh",
           "cleanup.sh"
         ]
+      },
+      {
+        "from": "docs",
+        "to": "docs",
+        "filter": ["*.md"]
       }
     ],
     "mac": {

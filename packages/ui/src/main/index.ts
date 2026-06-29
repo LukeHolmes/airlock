@@ -8,7 +8,7 @@
  * - Protocol/URL handling
  */
 
-import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -22,6 +22,7 @@ import {
   ensureSandboxImageReady,
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
+import { resolveSetupGuidePath } from './docsPath.js';
 import { refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
 import {
@@ -49,10 +50,11 @@ let mainWindow: BrowserWindow | null = null;
 async function notifyDockerUnavailable(): Promise<void> {
   const result = await dialog.showMessageBox({
     type: 'warning',
-    title: 'Docker Required',
-    message: 'Airlock requires Docker Desktop to run sandboxes.',
-    detail: 'Install Docker Desktop to create isolated sessions. The app will open without sandbox support until Docker is available.',
-    buttons: ['Open Docker Download', 'Continue'],
+    title: 'Docker required',
+    message: 'Airlock needs Docker Desktop to run sealed workspaces.',
+    detail:
+      'Install Docker Desktop and keep it running. You can open Airlock without it, but you will not be able to start a session until Docker is available.',
+    buttons: ['Open Docker download', 'Continue'],
     defaultId: 0,
     cancelId: 1,
   });
@@ -65,10 +67,10 @@ async function notifyDockerUnavailable(): Promise<void> {
 async function notifySandboxImageMissing(): Promise<void> {
   await dialog.showMessageBox({
     type: 'warning',
-    title: 'Sandbox Setup Required',
-    message: 'The Airlock sandbox image is not installed.',
+    title: 'Sandbox setup required',
+    message: 'Your Airlock sandbox is not set up yet.',
     detail:
-      'Build airlock/sandbox:latest before creating sessions.\n\nDevelopers: pnpm sandbox:build\n\nVerify: docker images airlock/sandbox:latest',
+      'This is a one-time step (~1–2 GB). In the app, open the setup window and click Set up sandbox. See Help → Setup guide for full instructions.',
     buttons: ['Continue'],
     defaultId: 0,
   });
@@ -204,6 +206,72 @@ function emitSessionError(session: AirlockSession, error: string): void {
   mainWindow.webContents.send(IPC_CHANNELS.SESSION_ERROR, event);
 }
 
+function createApplicationMenu(): void {
+  const isMac = process.platform === 'darwin';
+
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac
+      ? [
+          {
+            label: app.name,
+            submenu: [
+              { role: 'about' as const },
+              { type: 'separator' as const },
+              { role: 'services' as const },
+              { type: 'separator' as const },
+              { role: 'hide' as const },
+              { role: 'hideOthers' as const },
+              { role: 'unhide' as const },
+              { type: 'separator' as const },
+              { role: 'quit' as const },
+            ],
+          },
+        ]
+      : []),
+    {
+      label: 'File',
+      submenu: [isMac ? { role: 'close' } : { role: 'quit' }],
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Setup guide',
+          click: () => {
+            void openSetupGuide();
+          },
+        },
+      ],
+    },
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+async function openSetupGuide(): Promise<void> {
+  const guidePath = resolveSetupGuidePath();
+  if (!guidePath) {
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Setup guide not found',
+      message: 'The getting started guide could not be located.',
+      detail: 'Visit the Airlock releases page on GitHub for installation help.',
+      buttons: ['OK'],
+    });
+    return;
+  }
+
+  const error = await shell.openPath(guidePath);
+  if (error) {
+    await dialog.showMessageBox({
+      type: 'warning',
+      title: 'Could not open guide',
+      message: error,
+      buttons: ['OK'],
+    });
+  }
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.SESSION_CREATE,
@@ -222,7 +290,7 @@ function registerIpcHandlers(): void {
         const error = buildSandboxUnavailableSession(input);
         emitSessionError(
           error,
-          'Sandbox image not found. Build it with: pnpm sandbox:build',
+          'Sandbox is not set up. Open the setup window and click Set up sandbox.',
         );
         return error;
       }
@@ -290,6 +358,14 @@ function registerIpcHandlers(): void {
     },
   );
 
+  ipcMain.handle(IPC_CHANNELS.OPEN_SETUP_GUIDE, async (): Promise<void> => {
+    await openSetupGuide();
+  });
+
+  ipcMain.handle(IPC_CHANNELS.OPEN_DOCKER_DOWNLOAD, async (): Promise<void> => {
+    await shell.openExternal(DOCKER_DOWNLOAD_URL);
+  });
+
   console.log('[main] IPC handlers registered');
 }
 
@@ -297,6 +373,7 @@ app.whenReady().then(async () => {
   console.log(`[main] Airlock ${VERSION} starting...`);
 
   configureSessionForLocalVnc();
+  createApplicationMenu();
   registerIpcHandlers();
   docker.installCrashTrap();
 

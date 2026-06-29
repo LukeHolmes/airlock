@@ -22,6 +22,8 @@ export const IPC_CHANNELS = {
   GET_READINESS: 'airlock:system:get-readiness',
   VALIDATE_DROP: 'airlock:system:validate-drop',
   ENSURE_SANDBOX_IMAGE: 'airlock:system:ensure-sandbox-image',
+  OPEN_SETUP_GUIDE: 'airlock:system:open-setup-guide',
+  OPEN_DOCKER_DOWNLOAD: 'airlock:system:open-docker-download',
 } as const;
 
 // Type-safe channel names
@@ -146,6 +148,8 @@ export interface AirlockIpcApi {
   getReadiness(): Promise<AirlockReadiness>;
   validateDrop(filePath: string): Promise<DropValidationResult>;
   ensureSandboxImage(): Promise<EnsureSandboxImageResult>;
+  openSetupGuide(): Promise<void>;
+  openDockerDownload(): Promise<void>;
   getPathForFile(file: File): string;
   onOpenFile(callback: (filePath: string) => void): () => void;
 }

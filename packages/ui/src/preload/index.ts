@@ -81,6 +81,14 @@ async function ensureSandboxImage(): Promise<EnsureSandboxImageResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.ENSURE_SANDBOX_IMAGE);
 }
 
+async function openSetupGuide(): Promise<void> {
+  return ipcRenderer.invoke(IPC_CHANNELS.OPEN_SETUP_GUIDE);
+}
+
+async function openDockerDownload(): Promise<void> {
+  return ipcRenderer.invoke(IPC_CHANNELS.OPEN_DOCKER_DOWNLOAD);
+}
+
 function onOpenFile(callback: (filePath: string) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
     callback(filePath);
@@ -103,6 +111,8 @@ const airlockApi: AirlockIpcApi = {
   getReadiness,
   validateDrop,
   ensureSandboxImage,
+  openSetupGuide,
+  openDockerDownload,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
 };

@@ -4,6 +4,8 @@ Local-first, disposable sandboxed workspace. Electron + Docker + KasmVNC.
 
 Drop a file in. It opens in an isolated container. The container dies when you're done. Nothing persists. Nothing escapes.
 
+**End users:** see **[Getting started](docs/getting-started.md)** for install steps, first-run sandbox setup, and troubleshooting.
+
 Airlock is a hard fork of the OpenClaw monorepo architecture, entirely gutted of its AI/LLM components and rebuilt as a strict, deterministic, security-first local execution bus.
 
 **Current version:** `0.3.1`
@@ -219,7 +221,7 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 
 - [ ] Auto-setup UX on first launch (progress UI)
 - [ ] App icon for installers
-- [ ] End-user setup docs (`docs/`)
+- [x] End-user setup docs (`docs/`)
 - [ ] Persistent artefact storage + export
 
 **Still open**
