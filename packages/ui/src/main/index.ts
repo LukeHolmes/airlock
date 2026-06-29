@@ -43,7 +43,15 @@ const __dirname = path.dirname(__filename);
 
 const VERSION = '0.3.1';
 
-  configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
+function getAppIconPath(): string {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'icons', 'icon.png');
+  }
+
+  return path.join(__dirname, '../../../build/icons/icon.png');
+}
+
+configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -146,6 +154,7 @@ function createMainWindow(): BrowserWindow {
     minHeight: 600,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#08090B',
+    icon: getAppIconPath(),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
