@@ -4,6 +4,7 @@ import path from 'node:path';
 import Dockerode from 'dockerode';
 
 import { LOCAL_SANDBOX_IMAGE } from './imageCheck.js';
+import { detectRuntimeSocket } from './runtime.js';
 
 export { LOCAL_SANDBOX_IMAGE };
 
@@ -71,7 +72,8 @@ let dockerClient: Dockerode | undefined;
 
 function getDocker(): Dockerode {
   if (!dockerClient) {
-    dockerClient = new Dockerode();
+    const { socketPath } = detectRuntimeSocket();
+    dockerClient = new Dockerode({ socketPath });
   }
   return dockerClient;
 }

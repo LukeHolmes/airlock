@@ -1,4 +1,4 @@
-import { execSync } from 'node:child_process';
+import { docker } from '@airlock/core';
 
 const DOCKER_DOWNLOAD_URL = 'https://www.docker.com/products/docker-desktop/';
 
@@ -10,7 +10,7 @@ export function isDockerAvailable(): boolean {
   }
 
   try {
-    execSync('docker info', { stdio: 'ignore', timeout: 5000 });
+    docker.detectRuntimeSocket();
     dockerAvailable = true;
   } catch {
     dockerAvailable = false;

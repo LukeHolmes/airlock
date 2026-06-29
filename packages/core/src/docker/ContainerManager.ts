@@ -185,10 +185,14 @@ export function violentGarbageCollect(): void {
 
   let bin = 'docker';
   try {
-    bin = detectRuntimeBinary();
+    bin = detectRuntimeSocket().runtime;
   } catch {
-    // crash path — binary detection failed, fall back to 'docker'
-    // do not rethrow: we are already handling a process exit
+    try {
+      bin = detectRuntimeBinary();
+    } catch {
+      // crash path — binary detection failed, fall back to 'docker'
+      // do not rethrow: we are already handling a process exit
+    }
   }
 
   console.error(`[airlock] Violent GC: destroying ${sessions.length} container(s)`);
