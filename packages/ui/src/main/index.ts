@@ -370,6 +370,23 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(async () => {
+  // Runtime pre-flight — must be the first check on app ready
+  try {
+    docker.detectRuntimeSocket();
+  } catch (err) {
+    if (err instanceof docker.RuntimeNotFoundError) {
+      dialog.showErrorBox(
+        'Container runtime not found',
+        'Airlock requires Podman or Docker Desktop to be running.\n\n' +
+          'Install Podman from podman.io or start Docker Desktop, ' +
+          'then relaunch Airlock.',
+      );
+      app.quit();
+      return;
+    }
+    throw err;
+  }
+
   console.log(`[main] Airlock ${VERSION} starting...`);
 
   configureSessionForLocalVnc();
