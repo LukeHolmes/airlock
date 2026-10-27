@@ -7,9 +7,7 @@ const sessionLogs = new Map<
   }>
 >();
 
-export function getSessionLogs(
-  sessionId: string,
-): Array<{
+export function getSessionLogs(sessionId: string): Array<{
   ts: number;
   event: string;
   payload?: Record<string, unknown>;

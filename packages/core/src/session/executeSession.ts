@@ -106,9 +106,7 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
     ...(input.type === 'file'
       ? {
           filePath: input.filePath,
-          mimeType:
-            input.mimeType ??
-            (dropValidation?.ok ? dropValidation.mimeType : undefined),
+          mimeType: input.mimeType ?? (dropValidation?.ok ? dropValidation.mimeType : undefined),
         }
       : { url: input.url }),
   });

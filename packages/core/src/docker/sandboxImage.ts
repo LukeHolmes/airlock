@@ -17,10 +17,7 @@ export const SANDBOX_BUILD_FILES = [
 ] as const;
 
 export type SandboxSetupErrorCode =
-  | 'docker_unavailable'
-  | 'pull_failed'
-  | 'build_failed'
-  | 'no_strategy';
+  'docker_unavailable' | 'pull_failed' | 'build_failed' | 'no_strategy';
 
 export class SandboxSetupError extends Error {
   readonly code: SandboxSetupErrorCode;
@@ -328,7 +325,8 @@ export async function ensureSandboxImageReady(
     }
   }
 
-  const pullSummary = pullErrors.length > 0 ? pullErrors.join('; ') : 'No pull candidates configured';
+  const pullSummary =
+    pullErrors.length > 0 ? pullErrors.join('; ') : 'No pull candidates configured';
 
   throw new SandboxSetupError(
     buildContextPath ? 'pull_failed' : 'no_strategy',

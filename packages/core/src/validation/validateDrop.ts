@@ -87,7 +87,8 @@ const SIGNATURE_RULES: SignatureRule[] = [
   },
   {
     mime: 'image/jpeg',
-    test: (buffer) => buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff,
+    test: (buffer) =>
+      buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff,
   },
   {
     mime: 'image/gif',
@@ -131,7 +132,9 @@ const SIGNATURE_RULES: SignatureRule[] = [
     test: (buffer) => {
       if (buffer.length < 4) return false;
       const magic = buffer.readUInt32BE(0);
-      return magic === 0xfeedface || magic === 0xfeedfacf || magic === 0xcefaedfe || magic === 0xcffaedfe;
+      return (
+        magic === 0xfeedface || magic === 0xfeedfacf || magic === 0xcefaedfe || magic === 0xcffaedfe
+      );
     },
   },
 ];
@@ -143,7 +146,10 @@ function sniffMime(buffer: Buffer): string {
     }
   }
 
-  const trimmed = buffer.toString('utf8', 0, Math.min(buffer.length, 256)).trimStart().toLowerCase();
+  const trimmed = buffer
+    .toString('utf8', 0, Math.min(buffer.length, 256))
+    .trimStart()
+    .toLowerCase();
   if (trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html')) {
     return 'text/html';
   }
@@ -214,7 +220,10 @@ function mimeMatchesExtension(sniffedMime: string, extension: string): boolean {
 
   if (hint.startsWith('text/') && sniffedMime.startsWith('text/')) return true;
 
-  if (hint === 'image/svg+xml' && (sniffedMime === 'text/plain' || sniffedMime === 'image/svg+xml')) {
+  if (
+    hint === 'image/svg+xml' &&
+    (sniffedMime === 'text/plain' || sniffedMime === 'image/svg+xml')
+  ) {
     return true;
   }
 

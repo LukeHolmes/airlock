@@ -97,10 +97,7 @@ async function ensureReadinessNotice(): Promise<void> {
   }
 }
 
-function buildUnavailableSession(
-  input: AirlockInput,
-  sessionId: string,
-): AirlockSession {
+function buildUnavailableSession(input: AirlockInput, sessionId: string): AirlockSession {
   const now = Date.now();
   return {
     sessionId,
@@ -359,13 +356,10 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(
-    IPC_CHANNELS.ENSURE_SANDBOX_IMAGE,
-    async (): Promise<EnsureSandboxImageResult> => {
-      const buildContextPath = getSandboxBuildContextPath() ?? undefined;
-      return ensureSandboxImageReady({ buildContextPath });
-    },
-  );
+  ipcMain.handle(IPC_CHANNELS.ENSURE_SANDBOX_IMAGE, async (): Promise<EnsureSandboxImageResult> => {
+    const buildContextPath = getSandboxBuildContextPath() ?? undefined;
+    return ensureSandboxImageReady({ buildContextPath });
+  });
 
   ipcMain.handle(IPC_CHANNELS.OPEN_SETUP_GUIDE, async (): Promise<void> => {
     await openSetupGuide();

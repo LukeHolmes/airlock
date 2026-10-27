@@ -198,7 +198,7 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 
 ## Status (v0.3.1+)
 
-> Core sandbox loop works end-to-end. Packaging and zero-config infrastructure landed; polish and v0.4 features in progress.
+> Core sandbox loop works end-to-end. Packaging, zero-config infrastructure and installer icons have landed. No tagged release yet; see [docs/MVP_PLAN.md](docs/MVP_PLAN.md) for the path to a v0.4 MVP release.
 
 **Working today**
 
@@ -220,7 +220,7 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 **In progress / v0.4**
 
 - [ ] Auto-setup UX on first launch (progress UI)
-- [ ] App icon for installers
+- [x] App icon for installers
 - [x] End-user setup docs (`docs/`)
 - [ ] Persistent artefact storage + export
 

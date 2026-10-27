@@ -1,6 +1,16 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, FileDown, Link, Zap, Trash2, Box, Terminal, Wifi, WifiOff } from 'lucide-react';
+import {
+  ShieldCheck,
+  FileDown,
+  Link,
+  Zap,
+  Trash2,
+  Box,
+  Terminal,
+  Wifi,
+  WifiOff,
+} from 'lucide-react';
 import VncViewer from './VncViewer';
 import type {
   AirlockInput,
@@ -63,44 +73,47 @@ export default function AirlockApp() {
   const viewState = viewStateFromSession(session);
   const canStartSession = readiness?.canStartSession ?? false;
 
-  const startIgnitionLogs = useCallback((inputType: 'file' | 'url' = 'file') => {
-    setLogs([]);
-    setError(null);
+  const startIgnitionLogs = useCallback(
+    (inputType: 'file' | 'url' = 'file') => {
+      setLogs([]);
+      setError(null);
 
-    const sequence =
-      inputType === 'url'
-        ? [
-            '[sys] Allocating ephemeral workspace for URL...',
-            '[docker] Pulling airlock/sandbox:latest...',
-            '[net] Bridge network enabled — external egress active.',
-            '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
-            '[vnc] Establishing secure WebSocket bridge...',
-            '[sys] Container sealed — awaiting KasmVNC feed...',
-          ]
-        : [
-            '[sys] Allocating ephemeral workspace for file...',
-            '[docker] Pulling airlock/sandbox:latest...',
-            '[vol] Mounting payload read-only...',
-            networkEnabled
-              ? '[net] Bridge network enabled — external egress active.'
-              : '[net] Air-gapped network adapters verified.',
-            '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
-            '[vnc] Establishing secure WebSocket bridge...',
-            '[sys] Container sealed — awaiting KasmVNC feed...',
-          ];
+      const sequence =
+        inputType === 'url'
+          ? [
+              '[sys] Allocating ephemeral workspace for URL...',
+              '[docker] Pulling airlock/sandbox:latest...',
+              '[net] Bridge network enabled — external egress active.',
+              '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
+              '[vnc] Establishing secure WebSocket bridge...',
+              '[sys] Container sealed — awaiting KasmVNC feed...',
+            ]
+          : [
+              '[sys] Allocating ephemeral workspace for file...',
+              '[docker] Pulling airlock/sandbox:latest...',
+              '[vol] Mounting payload read-only...',
+              networkEnabled
+                ? '[net] Bridge network enabled — external egress active.'
+                : '[net] Air-gapped network adapters verified.',
+              '[sec] CapDrop ALL, no-new-privileges, seccomp profile applied.',
+              '[vnc] Establishing secure WebSocket bridge...',
+              '[sys] Container sealed — awaiting KasmVNC feed...',
+            ];
 
-    let step = 0;
-    const interval = setInterval(() => {
-      if (step < sequence.length) {
-        setLogs((prev) => [...prev, sequence[step]]);
-        step++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 400);
+      let step = 0;
+      const interval = setInterval(() => {
+        if (step < sequence.length) {
+          setLogs((prev) => [...prev, sequence[step]]);
+          step++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 400);
 
-    return () => clearInterval(interval);
-  }, [networkEnabled]);
+      return () => clearInterval(interval);
+    },
+    [networkEnabled],
+  );
 
   const startSession = useCallback(
     async (input: AirlockInput) => {
@@ -129,8 +142,7 @@ export default function AirlockApp() {
         metadata: {
           startTime: Date.now(),
           inputType: input.type,
-          networkMode:
-            input.type === 'url' ? 'enabled' : (input.networkMode ?? 'isolated'),
+          networkMode: input.type === 'url' ? 'enabled' : (input.networkMode ?? 'isolated'),
         },
       });
 
@@ -310,7 +322,10 @@ export default function AirlockApp() {
     if (!session || session.status !== 'running' || !ipc) return;
 
     try {
-      setLogs((prev) => [...prev, `[sys] Destroying workspace ${session.sessionId.slice(0, 12)}...`]);
+      setLogs((prev) => [
+        ...prev,
+        `[sys] Destroying workspace ${session.sessionId.slice(0, 12)}...`,
+      ]);
       const result = await ipc.destroySession(session);
       if (result.status === 'destroyed') {
         setSession(result);
@@ -339,11 +354,14 @@ export default function AirlockApp() {
     }
   }, [session]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    if (!canStartSession) return;
-    setIsDragging(true);
-  }, [canStartSession]);
+  const handleDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      if (!canStartSession) return;
+      setIsDragging(true);
+    },
+    [canStartSession],
+  );
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -448,7 +466,9 @@ export default function AirlockApp() {
       )}
 
       {error && (
-        <div className={`absolute left-1/2 -translate-x-1/2 z-20 ${readiness && !readiness.canStartSession && viewState === 'idle' ? 'top-28' : 'top-14'}`}>
+        <div
+          className={`absolute left-1/2 -translate-x-1/2 z-20 ${readiness && !readiness.canStartSession && viewState === 'idle' ? 'top-28' : 'top-14'}`}
+        >
           <div className="bg-[#F23D3D]/10 border border-[#F23D3D]/30 rounded-[6px] px-4 py-2 flex items-center gap-3">
             <span className="text-[#F23D3D] text-[13px]">{error}</span>
             <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">

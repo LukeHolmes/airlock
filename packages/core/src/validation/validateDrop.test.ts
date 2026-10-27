@@ -6,7 +6,11 @@ import { test } from 'node:test';
 
 import { validateDrop } from './validateDrop.js';
 
-function withTempFile(name: string, contents: string | Buffer, run: (filePath: string) => void): void {
+function withTempFile(
+  name: string,
+  contents: string | Buffer,
+  run: (filePath: string) => void,
+): void {
   const dir = mkdtempSync(join(tmpdir(), 'airlock-validate-drop-'));
   const filePath = join(dir, name);
   writeFileSync(filePath, contents);
