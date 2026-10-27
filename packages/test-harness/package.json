@@ -1,0 +1,19 @@
+{
+  "name": "@airlock/test-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "smoke": "node dist/runSmokeTest.js"
+  },
+  "dependencies": {
+    "@airlock/core": "workspace:*",
+    "dockerode": "^4.0.2"
+  },
+  "devDependencies": {
+    "@types/dockerode": "^3.3.29",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}

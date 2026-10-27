@@ -14,6 +14,7 @@
     "sandbox:build": "docker build -t airlock/sandbox:latest ./packages/sandbox",
     "sandbox:smoke": "bash scripts/sandbox-smoke.sh",
     "core:smoke": "pnpm --filter @airlock/core build && node --import ./scripts/register-core.mjs scripts/core-smoke.mjs",
+    "airlock:test": "pnpm --filter @airlock/core build && pnpm --filter @airlock/test-harness build && pnpm --filter @airlock/test-harness smoke",
     "pretest:smoke": "pnpm build && pnpm sandbox:build",
     "typecheck": "pnpm --filter @airlock/core typecheck && pnpm --filter @airlock/ui typecheck",
     "test": "pnpm --filter @airlock/core test",
