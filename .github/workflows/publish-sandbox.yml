@@ -9,7 +9,7 @@ on:
       version:
         description: 'Semantic version to publish (without v prefix)'
         required: true
-        default: '0.3.1'
+        default: '0.4.0'
       push_latest:
         description: 'Also tag the image as :latest'
         required: true

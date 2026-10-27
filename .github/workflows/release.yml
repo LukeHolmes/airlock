@@ -1,0 +1,70 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.optional }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            optional: false
+            args: --linux AppImage
+          - os: macos-latest
+            optional: true
+            args: --mac dmg
+          - os: windows-latest
+            optional: true
+            args: --win nsis
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Package (unsigned)
+        run: pnpm exec electron-builder ${{ matrix.args }} --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.os }}
+          path: |
+            dist/*.AppImage
+            dist/*.dmg
+            dist/*.exe
+          if-no-files-found: ignore
+
+  release:
+    name: GitHub Release
+    needs: build
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Require Linux installer
+        run: ls artifacts/*.AppImage
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          body_path: docs/RELEASE_NOTES.md
+          prerelease: ${{ contains(github.ref_name, '-') }}
