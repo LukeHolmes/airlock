@@ -19,10 +19,7 @@ export {
   type ContainerSession,
 } from './ContainerManager.js';
 
-export {
-  AIRLOCK_ISOLATED_NETWORK,
-  ensureIsolatedNetwork,
-} from './network.js';
+export { AIRLOCK_ISOLATED_NETWORK, ensureIsolatedNetwork } from './network.js';
 
 export {
   LOCAL_SANDBOX_IMAGE,

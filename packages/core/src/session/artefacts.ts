@@ -30,10 +30,7 @@ export function registerSessionRecord(
   sessionRegistry.set(sessionId, { input, metadata });
 }
 
-export function updateSessionRecord(
-  sessionId: string,
-  metadata: AirlockSession['metadata'],
-): void {
+export function updateSessionRecord(sessionId: string, metadata: AirlockSession['metadata']): void {
   const existing = sessionRegistry.get(sessionId);
   if (existing) {
     sessionRegistry.set(sessionId, { ...existing, metadata });

@@ -15,9 +15,7 @@ function getDocker(): Dockerode {
   return dockerClient;
 }
 
-export async function isSandboxImageAvailable(
-  image: string = SANDBOX_IMAGE,
-): Promise<boolean> {
+export async function isSandboxImageAvailable(image: string = SANDBOX_IMAGE): Promise<boolean> {
   try {
     const docker = getDocker();
     await docker.getImage(image).inspect();
