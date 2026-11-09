@@ -12,6 +12,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 import VncViewer from './VncViewer';
+import FirstRunProgress from './FirstRunProgress';
+import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
   AirlockInput,
   AirlockSession,
@@ -23,21 +25,6 @@ import type {
 } from '../shared/ipc.js';
 
 type ViewState = 'idle' | 'igniting' | 'active' | 'error';
-type SetupStatus = 'idle' | 'running' | 'failed';
-
-function formatSetupError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
-  if (/pull|network|ECONNREFUSED|ETIMEDOUT|registry/i.test(message)) {
-    return 'Could not download the sandbox. Check your internet connection and try again. Airlock can also build from bundled files if the download fails.';
-  }
-  if (/space|no space|ENOSPC/i.test(message)) {
-    return 'Not enough disk space. Free about 2 GB and try again.';
-  }
-  if (/docker/i.test(message)) {
-    return 'Docker is not available. Start Docker Desktop and try again.';
-  }
-  return 'Sandbox setup did not complete. See Help → Setup guide or try again.';
-}
 
 const ipc = typeof window !== 'undefined' ? window.airlock : undefined;
 
@@ -68,12 +55,20 @@ export default function AirlockApp() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
-  const [showSetup, setShowSetup] = useState(false);
-  const [setupStatus, setSetupStatus] = useState<SetupStatus>('idle');
-  const [setupError, setSetupError] = useState<string | null>(null);
+
+  const handleReadinessRefresh = useCallback(async () => {
+    if (!ipc) return;
+    const next = await ipc.getReadiness();
+    setReadiness(next);
+    if (next.canStartSession) {
+      setError(null);
+    }
+  }, []);
+
+  const firstRun = useFirstRunSetup(ipc, readiness, handleReadinessRefresh);
 
   const viewState = viewStateFromSession(session);
-  const canStartSession = readiness?.canStartSession ?? false;
+  const canStartSession = (readiness?.canStartSession ?? false) && !firstRun.visible;
 
   const startIgnitionLogs = useCallback(
     (inputType: 'file' | 'url' = 'file') => {
@@ -126,11 +121,9 @@ export default function AirlockApp() {
 
       if (!canStartSession) {
         if (!readiness?.docker.available) {
-          setError('Start Docker Desktop, then click Re-check.');
-          setShowSetup(true);
+          setError('Start Docker Desktop, then click Retry on the setup screen.');
         } else {
           setError('Complete sandbox setup before opening a workspace.');
-          setShowSetup(true);
         }
         return;
       }
@@ -232,44 +225,6 @@ export default function AirlockApp() {
     },
     [handleFilePath],
   );
-
-  const handleRecheckReadiness = useCallback(async () => {
-    if (!ipc) return;
-    const next = await ipc.getReadiness();
-    setReadiness(next);
-    if (next.canStartSession) {
-      setError(null);
-      setShowSetup(false);
-      setSetupStatus('idle');
-      setSetupError(null);
-    }
-  }, []);
-
-  const handleSetupSandbox = useCallback(async () => {
-    if (!ipc) return;
-
-    setSetupStatus('running');
-    setSetupError(null);
-
-    try {
-      await ipc.ensureSandboxImage();
-      const next = await ipc.getReadiness();
-      setReadiness(next);
-      if (next.canStartSession) {
-        setError(null);
-        setShowSetup(false);
-        setSetupStatus('idle');
-      } else {
-        setSetupStatus('failed');
-        setSetupError(
-          'Setup finished but the sandbox is still not ready. Click Re-check or try again.',
-        );
-      }
-    } catch (err: unknown) {
-      setSetupStatus('failed');
-      setSetupError(formatSetupError(err));
-    }
-  }, []);
 
   const handleOpenDockerDownload = useCallback(async () => {
     if (!ipc) return;
@@ -451,191 +406,35 @@ export default function AirlockApp() {
         </div>
       </header>
 
-      {readiness && !readiness.canStartSession && viewState === 'idle' && (
-        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20 w-full max-w-2xl px-4">
-          <div
-            className={`rounded-[6px] px-4 py-3 flex items-center justify-between gap-3 border ${
-              !readiness.docker.available
-                ? 'bg-[#F23D3D]/10 border-[#F23D3D]/30'
-                : 'bg-[#FF6A2B]/10 border-[#FF6A2B]/30'
-            }`}
-          >
-            <span
-              className={`text-[13px] ${
-                !readiness.docker.available ? 'text-[#F23D3D]' : 'text-[#FF6A2B]'
-              }`}
-            >
-              {!readiness.docker.available
-                ? 'Docker Desktop is required. Install it and keep it running.'
-                : 'One-time sandbox setup required (~1–2 GB).'}
-            </span>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowSetup(true)}
-                className="px-2.5 py-1 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[11px] font-mono text-[#ECEFF3]"
-              >
-                {!readiness.docker.available ? 'Setup' : 'Set up'}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleRecheckReadiness()}
-                className="px-2.5 py-1 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[11px] font-mono text-[#ECEFF3]"
-              >
-                Re-check
-              </button>
-            </div>
-          </div>
-        </div>
+      {firstRun.visible && (
+        <FirstRunProgress
+          readiness={readiness}
+          stages={firstRun.stages}
+          progress={firstRun.progress}
+          logLines={firstRun.logLines}
+          status={
+            firstRun.status === 'hidden'
+              ? 'idle'
+              : firstRun.status === 'running'
+                ? 'running'
+                : firstRun.status === 'failed'
+                  ? 'failed'
+                  : 'complete'
+          }
+          failure={firstRun.failure}
+          onRetry={() => void firstRun.handleRetry()}
+          onOpenDockerDownload={() => void handleOpenDockerDownload()}
+          onOpenSetupGuide={() => void handleOpenSetupGuide()}
+        />
       )}
 
       {error && (
-        <div
-          className={`absolute left-1/2 -translate-x-1/2 z-20 ${readiness && !readiness.canStartSession && viewState === 'idle' ? 'top-28' : 'top-14'}`}
-        >
+        <div className="absolute top-14 left-1/2 -translate-x-1/2 z-20">
           <div className="bg-[#F23D3D]/10 border border-[#F23D3D]/30 rounded-[6px] px-4 py-2 flex items-center gap-3">
             <span className="text-[#F23D3D] text-[13px]">{error}</span>
             <button onClick={() => setError(null)} className="text-[#F23D3D] hover:text-[#FF5757]">
               ×
             </button>
-          </div>
-        </div>
-      )}
-
-      {showSetup && readiness && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-30 p-4">
-          <div className="bg-[#12151A] border border-[#23272F] rounded-[8px] p-5 max-w-lg w-full">
-            {!readiness.docker.available ? (
-              <>
-                <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-2">
-                  Install Docker Desktop
-                </h3>
-                <p className="text-[13px] text-[#AAB3BE] mb-4 leading-relaxed">
-                  Airlock runs each workspace inside a sealed Docker container. Install Docker
-                  Desktop, start it, and wait until it reports running — then return here and click
-                  Re-check.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleOpenDockerDownload()}
-                    className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium"
-                  >
-                    Download Docker Desktop
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleRecheckReadiness()}
-                    className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] text-[#ECEFF3]"
-                  >
-                    Re-check
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleOpenSetupGuide()}
-                    className="px-3 py-1.5 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[12px] text-[#AAB3BE]"
-                  >
-                    Open setup guide
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSetup(false)}
-                    className="px-3 py-1.5 bg-transparent rounded-[4px] text-[12px] text-[#7E8B9A]"
-                  >
-                    Close
-                  </button>
-                </div>
-              </>
-            ) : setupStatus === 'running' ? (
-              <>
-                <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-2">
-                  Setting up sandbox
-                </h3>
-                <p className="text-[13px] text-[#AAB3BE] mb-4 leading-relaxed">
-                  Downloading or preparing your workspace image (~1–2 GB). This is a one-time step.
-                  Keep Docker running and leave this window open.
-                </p>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-4 h-4 border-2 border-[#3DE8D4] border-t-transparent rounded-full animate-spin" />
-                  <span className="text-[12px] font-mono text-[#3DE8D4]">Working…</span>
-                </div>
-              </>
-            ) : setupStatus === 'failed' ? (
-              <>
-                <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-2">Setup failed</h3>
-                <p className="text-[13px] text-[#F23D3D] mb-4 leading-relaxed">
-                  {setupError ?? 'Sandbox setup did not complete.'}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleSetupSandbox()}
-                    className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium"
-                  >
-                    Try again
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleOpenSetupGuide()}
-                    className="px-3 py-1.5 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[12px] text-[#AAB3BE]"
-                  >
-                    Troubleshooting
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSetupStatus('idle');
-                      setSetupError(null);
-                      setShowSetup(false);
-                    }}
-                    className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] text-[#ECEFF3]"
-                  >
-                    Close
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 className="text-[15px] font-semibold text-[#ECEFF3] mb-2">
-                  Set up your sandbox
-                </h3>
-                <p className="text-[13px] text-[#AAB3BE] mb-4 leading-relaxed">
-                  Before your first session, Airlock prepares a sealed workspace environment on your
-                  machine. This one-time download is about 1–2 GB. After setup, you can drop files
-                  into an air-gapped workspace and destroy it when finished.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleSetupSandbox()}
-                    className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium"
-                  >
-                    Set up sandbox
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleOpenSetupGuide()}
-                    className="px-3 py-1.5 bg-[#181C22] border border-[#23272F] rounded-[4px] text-[12px] text-[#AAB3BE]"
-                  >
-                    Open setup guide
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void handleRecheckReadiness()}
-                    className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] text-[#ECEFF3]"
-                  >
-                    Re-check
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSetup(false)}
-                    className="px-3 py-1.5 bg-transparent rounded-[4px] text-[12px] text-[#7E8B9A]"
-                  >
-                    Close
-                  </button>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}

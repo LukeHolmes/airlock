@@ -47,6 +47,18 @@ export {
 } from './sandboxImage.js';
 
 export {
+  deriveFirstRunStages,
+  mapProgressPhaseToStageId,
+  parseSandboxSetupFailure,
+  shouldAppendProgressDetail,
+  userMessageForSandboxSetupError,
+  type FirstRunStage,
+  type FirstRunStageId,
+  type FirstRunStageState,
+  type SandboxSetupFailure,
+} from './sandboxSetupUi.js';
+
+export {
   AIRLOCK_SECCOMP_PROFILE,
   serializeSeccompProfile,
   type SeccompProfile,

@@ -46,6 +46,18 @@ export {
 } from './docker/sandboxImage.js';
 
 export {
+  deriveFirstRunStages,
+  mapProgressPhaseToStageId,
+  parseSandboxSetupFailure,
+  shouldAppendProgressDetail,
+  userMessageForSandboxSetupError,
+  type FirstRunStage,
+  type FirstRunStageId,
+  type FirstRunStageState,
+  type SandboxSetupFailure,
+} from './docker/sandboxSetupUi.js';
+
+export {
   MAX_DROP_FILE_BYTES,
   validateDrop,
   type DropValidationErrorCode,

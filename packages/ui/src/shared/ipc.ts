@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   GET_READINESS: 'airlock:system:get-readiness',
   VALIDATE_DROP: 'airlock:system:validate-drop',
   ENSURE_SANDBOX_IMAGE: 'airlock:system:ensure-sandbox-image',
+  SANDBOX_SETUP_PROGRESS: 'airlock:sandbox:setup-progress',
   OPEN_SETUP_GUIDE: 'airlock:system:open-setup-guide',
   OPEN_DOCKER_DOWNLOAD: 'airlock:system:open-docker-download',
 } as const;
@@ -98,6 +99,21 @@ export type EnsureSandboxImageResult = {
   pulledRef?: string;
 };
 
+export type SandboxSetupPhase = 'checking' | 'pulling' | 'building' | 'tagging' | 'ready';
+
+export type SandboxSetupErrorCode =
+  'docker_unavailable' | 'pull_failed' | 'build_failed' | 'no_strategy';
+
+export type SandboxSetupProgress = {
+  phase: SandboxSetupPhase;
+  message: string;
+  detail?: string;
+};
+
+export type EnsureSandboxImageOutcome =
+  | { ok: true; result: EnsureSandboxImageResult }
+  | { ok: false; code: SandboxSetupErrorCode | 'unknown'; message: string };
+
 export type DropValidationErrorCode =
   | 'not_found'
   | 'not_a_file'
@@ -154,7 +170,8 @@ export interface AirlockIpcApi {
   getVersion(): Promise<string>;
   getReadiness(): Promise<AirlockReadiness>;
   validateDrop(filePath: string): Promise<DropValidationResult>;
-  ensureSandboxImage(): Promise<EnsureSandboxImageResult>;
+  ensureSandboxImage(): Promise<EnsureSandboxImageOutcome>;
+  onSandboxSetupProgress(callback: (progress: SandboxSetupProgress) => void): () => void;
   openSetupGuide(): Promise<void>;
   openDockerDownload(): Promise<void>;
   getPathForFile(file: File): string;

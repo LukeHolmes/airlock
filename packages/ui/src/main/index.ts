@@ -23,6 +23,7 @@ import {
   configureSandboxImage,
   ensureSandboxImageReady,
   log,
+  SandboxSetupError,
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
@@ -34,7 +35,8 @@ import {
   type AirlockSession,
   type AirlockReadiness,
   type DropValidationResult,
-  type EnsureSandboxImageResult,
+  type EnsureSandboxImageOutcome,
+  type SandboxSetupProgress,
   type SessionAnalysisResult,
   type SessionExportResult,
   type SessionStartedEvent,
@@ -87,46 +89,9 @@ configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
 
 let mainWindow: BrowserWindow | null = null;
 
-async function notifyDockerUnavailable(): Promise<void> {
-  const result = await dialog.showMessageBox({
-    type: 'warning',
-    title: 'Docker required',
-    message: 'Airlock needs Docker Desktop to run sealed workspaces.',
-    detail:
-      'Install Docker Desktop and keep it running. You can open Airlock without it, but you will not be able to start a session until Docker is available.',
-    buttons: ['Open Docker download', 'Continue'],
-    defaultId: 0,
-    cancelId: 1,
-  });
-
-  if (result.response === 0) {
-    await shell.openExternal(DOCKER_DOWNLOAD_URL);
-  }
-}
-
-async function notifySandboxImageMissing(): Promise<void> {
-  await dialog.showMessageBox({
-    type: 'warning',
-    title: 'Sandbox setup required',
-    message: 'Your Airlock sandbox is not set up yet.',
-    detail:
-      'This is a one-time step (~1–2 GB). In the app, open the setup window and click Set up sandbox. See Help → Setup guide for full instructions.',
-    buttons: ['Continue'],
-    defaultId: 0,
-  });
-}
-
 async function ensureReadinessNotice(): Promise<void> {
-  const readiness = await refreshReadiness();
-
-  if (!readiness.docker.available) {
-    await notifyDockerUnavailable();
-    return;
-  }
-
-  if (!readiness.sandboxImage.available) {
-    await notifySandboxImageMissing();
-  }
+  // First-run setup and Docker status are handled in the renderer progress screen.
+  await refreshReadiness();
 }
 
 function buildUnavailableSession(input: AirlockInput, sessionId: string): AirlockSession {
@@ -428,10 +393,31 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.handle(IPC_CHANNELS.ENSURE_SANDBOX_IMAGE, async (): Promise<EnsureSandboxImageResult> => {
-    const buildContextPath = getSandboxBuildContextPath() ?? undefined;
-    return ensureSandboxImageReady({ buildContextPath });
-  });
+  ipcMain.handle(
+    IPC_CHANNELS.ENSURE_SANDBOX_IMAGE,
+    async (event): Promise<EnsureSandboxImageOutcome> => {
+      const buildContextPath = getSandboxBuildContextPath() ?? undefined;
+      const sendProgress = (progress: SandboxSetupProgress) => {
+        event.sender.send(IPC_CHANNELS.SANDBOX_SETUP_PROGRESS, progress);
+      };
+
+      try {
+        const result = await ensureSandboxImageReady({
+          buildContextPath,
+          onProgress: sendProgress,
+        });
+        await refreshReadiness();
+        return { ok: true, result };
+      } catch (error) {
+        if (error instanceof SandboxSetupError) {
+          return { ok: false, code: error.code, message: error.message };
+        }
+
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, code: 'unknown', message };
+      }
+    },
+  );
 
   ipcMain.handle(IPC_CHANNELS.OPEN_SETUP_GUIDE, async (): Promise<void> => {
     await openSetupGuide();

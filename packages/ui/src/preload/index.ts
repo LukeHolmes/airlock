@@ -12,7 +12,8 @@ import {
   type AirlockSession,
   type AirlockReadiness,
   type DropValidationResult,
-  type EnsureSandboxImageResult,
+  type EnsureSandboxImageOutcome,
+  type SandboxSetupProgress,
   type SessionAnalysisResult,
   type SessionExportResult,
   type SessionStartedEvent,
@@ -82,8 +83,18 @@ async function validateDrop(filePath: string): Promise<DropValidationResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.VALIDATE_DROP, filePath);
 }
 
-async function ensureSandboxImage(): Promise<EnsureSandboxImageResult> {
+async function ensureSandboxImage(): Promise<EnsureSandboxImageOutcome> {
   return ipcRenderer.invoke(IPC_CHANNELS.ENSURE_SANDBOX_IMAGE);
+}
+
+function onSandboxSetupProgress(callback: (progress: SandboxSetupProgress) => void): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, progress: SandboxSetupProgress) => {
+    callback(progress);
+  };
+  ipcRenderer.on(IPC_CHANNELS.SANDBOX_SETUP_PROGRESS, handler);
+  return () => {
+    ipcRenderer.removeListener(IPC_CHANNELS.SANDBOX_SETUP_PROGRESS, handler);
+  };
 }
 
 async function openSetupGuide(): Promise<void> {
@@ -117,6 +128,7 @@ const airlockApi: AirlockIpcApi = {
   getReadiness,
   validateDrop,
   ensureSandboxImage,
+  onSandboxSetupProgress,
   openSetupGuide,
   openDockerDownload,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
