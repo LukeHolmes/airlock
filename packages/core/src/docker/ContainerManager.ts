@@ -16,6 +16,8 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import http from 'node:http';
+
 import Dockerode from 'dockerode';
 import { log } from '../debug/logger.js';
 import { ensureIsolatedNetwork } from './network.js';
@@ -272,6 +274,21 @@ function resolveVncUrls(info: Dockerode.ContainerInspectInfo): {
   return { vncUrl, vncPageUrl };
 }
 
+function probeLocalHttpOk(url: string, timeoutMs = 2000): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(url, { timeout: timeoutMs }, (res) => {
+      res.resume();
+      const code = res.statusCode ?? 0;
+      resolve(code >= 200 && code < 400);
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on('error', () => resolve(false));
+  });
+}
+
 async function waitForVncReady(
   container: Dockerode.Container,
   timeoutMs = 15000,
@@ -283,13 +300,9 @@ async function waitForVncReady(
     const urls = resolveVncUrls(info);
 
     if (urls.vncUrl) {
-      try {
-        const response = await fetch(urls.vncUrl);
-        if (response.ok) {
-          return urls;
-        }
-      } catch {
-        // KasmVNC not accepting connections yet
+      const ready = await probeLocalHttpOk(urls.vncUrl);
+      if (ready) {
+        return urls;
       }
     }
 

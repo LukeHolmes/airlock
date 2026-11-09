@@ -69,6 +69,7 @@ export default function AirlockApp() {
 
   const sessionStartInFlight = useRef(false);
   const ignitionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingSessionInput = useRef<AirlockInput | null>(null);
 
   const viewState = viewStateFromSession(session);
   const canStartSession = (readiness?.canStartSession ?? false) && !firstRun.visible;
@@ -135,12 +136,23 @@ export default function AirlockApp() {
         return;
       }
 
-      if (!canStartSession) {
-        if (!readiness?.docker.available) {
+      const activeReadiness = readiness ?? (await ipc.getReadiness());
+      if (readiness === null) {
+        setReadiness(activeReadiness);
+      }
+
+      const readyForSession =
+        activeReadiness.canStartSession &&
+        activeReadiness.docker.available &&
+        activeReadiness.sandboxImage.available;
+
+      if (!readyForSession || firstRun.visible) {
+        if (!activeReadiness.docker.available) {
           setError('Start Docker Desktop, then click Retry on the setup screen.');
-        } else {
-          setError('Complete sandbox setup before opening a workspace.');
+          return;
         }
+        pendingSessionInput.current = input;
+        setError(null);
         return;
       }
 
@@ -177,8 +189,17 @@ export default function AirlockApp() {
         sessionStartInFlight.current = false;
       }
     },
-    [startIgnitionLogs, canStartSession, readiness],
+    [startIgnitionLogs, readiness, firstRun.visible],
   );
+
+  useEffect(() => {
+    if (!ipc || !canStartSession || !pendingSessionInput.current) {
+      return;
+    }
+    const input = pendingSessionInput.current;
+    pendingSessionInput.current = null;
+    void startSession(input);
+  }, [canStartSession, startSession, ipc]);
 
   const handleFilePath = useCallback(
     async (filePath: string) => {

@@ -28,7 +28,7 @@ import {
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
-import { refreshReadiness } from './readiness.js';
+import { getReadiness, refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
 import {
   IPC_CHANNELS,
@@ -98,17 +98,30 @@ function pickOpenablePath(argv: string[]): string | undefined {
   });
 }
 
-function deliverOpenFileToRenderer(filePath: string): void {
+async function deliverOpenFileToRenderer(filePath: string): Promise<void> {
   if (!mainWindow) {
     return;
   }
+
   const send = () => {
     mainWindow?.webContents.send('airlock:open-file', filePath);
   };
-  if (mainWindow.webContents.isLoading()) {
-    mainWindow.webContents.once('did-finish-load', send);
-  } else {
+
+  const deliver = async () => {
+    try {
+      await getReadiness();
+    } catch {
+      // Renderer will queue the open until sandbox setup finishes.
+    }
     send();
+  };
+
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      void deliver();
+    });
+  } else {
+    await deliver();
   }
 }
 
@@ -121,11 +134,6 @@ function getAppIconPath(): string {
 }
 
 configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
-
-if (process.env.AIRLOCK_HEADLESS_GL === '1') {
-  app.commandLine.appendSwitch('use-gl', 'swiftshader');
-  app.commandLine.appendSwitch('disable-gpu-sandbox');
-}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -483,7 +491,7 @@ app.whenReady().then(async () => {
 
   const cliFile = pickOpenablePath(process.argv);
   if (cliFile) {
-    deliverOpenFileToRenderer(cliFile);
+    void deliverOpenFileToRenderer(cliFile);
   }
 
   app.on('activate', () => {
@@ -553,7 +561,7 @@ if (!gotTheLock) {
 
       const fileOrUrl = pickOpenablePath(argv);
       if (fileOrUrl) {
-        deliverOpenFileToRenderer(fileOrUrl);
+        void deliverOpenFileToRenderer(fileOrUrl);
       }
     }
   });
