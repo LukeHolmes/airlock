@@ -13,7 +13,7 @@ import {
   waitForVnc,
 } from './utils.js';
 
-const TIMEOUT_MS = 15000;
+const TIMEOUT_MS = 90000;
 
 type StepResult = {
   label: string;

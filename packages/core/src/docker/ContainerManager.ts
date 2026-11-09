@@ -378,7 +378,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     StdinOnce: false,
     Labels: {
       'app.airlock.managed': 'true',
-      'airlock_session': 'true',
+      airlock_session: 'true',
       'app.airlock.session': config.name,
       'app.airlock.created': new Date().toISOString(),
     },
@@ -432,9 +432,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     hostPort: initialPort,
   });
 
-  const { vncUrl, vncPageUrl } = config.publishVnc
-    ? await waitForVncReady(container)
-    : initialUrls;
+  const { vncUrl, vncPageUrl } = config.publishVnc ? await waitForVncReady(container) : initialUrls;
 
   log('INFO', 'VNC URL generated', {
     eventName: 'container.vnc.ready',

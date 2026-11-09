@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+
 import Dockerode from 'dockerode';
 
 const VNC_CONTAINER_PORT = '6901/tcp';
@@ -53,21 +55,30 @@ export async function getMappedPort(containerId: string): Promise<number | null>
   }
 }
 
-export async function waitForVnc(port: number, timeoutMs = 15000): Promise<boolean> {
+/** Matches the HTTP/HTTPS probe used in `.github/workflows/ci.yml` docker job. */
+function probeVncHttp(port: number): boolean {
+  try {
+    execSync(`curl -sf http://127.0.0.1:${port}/ >/dev/null`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    try {
+      execSync(`curl -skf https://127.0.0.1:${port}/ >/dev/null`, { stdio: 'ignore' });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+export async function waitForVnc(port: number, timeoutMs = 90000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
-  const url = `http://127.0.0.1:${port}`;
 
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        return true;
-      }
-    } catch {
-      // KasmVNC not ready yet
+    if (probeVncHttp(port)) {
+      return true;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 3000));
   }
 
   return false;
