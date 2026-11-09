@@ -60,7 +60,9 @@ No isolation settings were weakened to pass tests.
 
 ### Fixed in this PR (small)
 
-1. **Bundled sandbox build failed without BuildKit** — `ensureSandboxImageReady` used dockerode’s legacy `buildImage`, which cannot parse heredoc `COPY` or set `TARGETARCH`. **Fix:** prefer `docker buildx build --load` with `TARGETARCH` build-arg; default `ARG TARGETARCH=amd64` in Dockerfile; `pnpm sandbox:build` uses buildx.
+1. **Production UI shipped without Tailwind/CSS** — `packages/ui/src/renderer/main.tsx` never imported `./index.css`, so `pnpm build` + `electron .` rendered unstyled HTML (plain fonts, broken layout). Fixed by importing the stylesheet; Vite now emits `assets/main-*.css` linked from `dist/renderer/index.html`.
+2. **Duplicate ignition log lines** — overlapping session start (second-instance argv picked the Electron binary path; duplicate IPC log appends). Fixed with `sessionStartInFlight`, deduped setup log lines, and safer `pickOpenablePath()` for CLI/second-instance file opens.
+3. **Bundled sandbox build failed without BuildKit** — `ensureSandboxImageReady` used dockerode’s legacy `buildImage`, which cannot parse heredoc `COPY` or set `TARGETARCH`. **Fix:** prefer `docker buildx build --load` with `TARGETARCH` build-arg; default `ARG TARGETARCH=amd64` in Dockerfile; `pnpm sandbox:build` uses buildx.
 2. **`pnpm sandbox:build` on legacy docker** — fails without buildx (documented; CI already uses Buildx).
 
 ### Not fixed (larger / follow-up)

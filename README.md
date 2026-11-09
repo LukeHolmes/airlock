@@ -18,7 +18,7 @@ Airlock is a hard fork of the OpenClaw monorepo architecture, entirely gutted of
 |---|---|
 | First-run sandbox setup | ![Preparing your sandbox](docs/assets/first-run-progress.png) |
 | Session starting (hardened workspace) | ![Orchestrating isolation](docs/assets/main-session.png) |
-| Session analysis & export | ![Session analysis](docs/assets/session-export.png) |
+| Session ended (analyze & export) | ![Session analysis](docs/assets/session-export.png) |
 | Ready to detonate | ![Idle drop zone](docs/assets/cleanup-idle.png) |
 
 **Short demo (drop → sandbox → destroy → analysis):**

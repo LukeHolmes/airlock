@@ -9,6 +9,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -77,6 +78,40 @@ function logSessionEvent(
   });
 }
 
+function pickOpenablePath(argv: string[]): string | undefined {
+  const ignoredSuffixes = ['electron', 'airlock', 'Airlock'];
+
+  return [...argv].reverse().find((arg) => {
+    if (!arg || arg.startsWith('-') || arg === '.') {
+      return false;
+    }
+    if (arg.includes('node_modules/electron') || arg.includes('/.pnpm/')) {
+      return false;
+    }
+    if (ignoredSuffixes.some((suffix) => arg.endsWith(suffix))) {
+      return false;
+    }
+    if (arg.startsWith('http://') || arg.startsWith('https://')) {
+      return false;
+    }
+    return existsSync(arg);
+  });
+}
+
+function deliverOpenFileToRenderer(filePath: string): void {
+  if (!mainWindow) {
+    return;
+  }
+  const send = () => {
+    mainWindow?.webContents.send('airlock:open-file', filePath);
+  };
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', send);
+  } else {
+    send();
+  }
+}
+
 function getAppIconPath(): string {
   if (app.isPackaged) {
     return path.join(process.resourcesPath, 'icons', 'icon.png');
@@ -86,6 +121,11 @@ function getAppIconPath(): string {
 }
 
 configureSandboxImage({ appVersion: VERSION, ghcrOwner: 'lukeholmes' });
+
+if (process.env.AIRLOCK_HEADLESS_GL === '1') {
+  app.commandLine.appendSwitch('use-gl', 'swiftshader');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+}
 
 let mainWindow: BrowserWindow | null = null;
 
@@ -441,6 +481,11 @@ app.whenReady().then(async () => {
   mainWindow = createMainWindow();
   void ensureReadinessNotice();
 
+  const cliFile = pickOpenablePath(process.argv);
+  if (cliFile) {
+    deliverOpenFileToRenderer(cliFile);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
@@ -506,9 +551,9 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
 
-      const fileOrUrl = argv.find((arg) => !arg.startsWith('--'));
-      if (fileOrUrl && !fileOrUrl.startsWith('http://') && !fileOrUrl.startsWith('https://')) {
-        mainWindow.webContents.send('airlock:open-file', fileOrUrl);
+      const fileOrUrl = pickOpenablePath(argv);
+      if (fileOrUrl) {
+        deliverOpenFileToRenderer(fileOrUrl);
       }
     }
   });

@@ -41,9 +41,20 @@ export function useFirstRunSetup(
   const appendProgress = useCallback((event: SandboxSetupProgress) => {
     setProgress((previous) => {
       if (shouldAppendProgressDetail(previous, event) && event.detail) {
-        setLogLines((lines) => [...lines.slice(-199), event.detail!]);
+        setLogLines((lines) => {
+          const next = event.detail!;
+          if (lines.length > 0 && lines[lines.length - 1] === next) {
+            return lines;
+          }
+          return [...lines.slice(-199), next];
+        });
       } else if (!previous && event.message) {
-        setLogLines((lines) => [...lines, event.message]);
+        setLogLines((lines) => {
+          if (lines.length > 0 && lines[lines.length - 1] === event.message) {
+            return lines;
+          }
+          return [...lines, event.message];
+        });
       }
       return event;
     });

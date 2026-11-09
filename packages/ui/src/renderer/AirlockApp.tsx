@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
@@ -67,11 +67,18 @@ export default function AirlockApp() {
 
   const firstRun = useFirstRunSetup(ipc, readiness, handleReadinessRefresh);
 
+  const sessionStartInFlight = useRef(false);
+  const ignitionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const viewState = viewStateFromSession(session);
   const canStartSession = (readiness?.canStartSession ?? false) && !firstRun.visible;
 
   const startIgnitionLogs = useCallback(
     (inputType: 'file' | 'url' = 'file') => {
+      if (ignitionIntervalRef.current) {
+        clearInterval(ignitionIntervalRef.current);
+        ignitionIntervalRef.current = null;
+      }
       setLogs([]);
       setError(null);
 
@@ -104,10 +111,15 @@ export default function AirlockApp() {
           step++;
         } else {
           clearInterval(interval);
+          ignitionIntervalRef.current = null;
         }
       }, 400);
+      ignitionIntervalRef.current = interval;
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        ignitionIntervalRef.current = null;
+      };
     },
     [networkEnabled],
   );
@@ -116,6 +128,10 @@ export default function AirlockApp() {
     async (input: AirlockInput) => {
       if (!ipc) {
         setError('IPC not available');
+        return;
+      }
+
+      if (sessionStartInFlight.current) {
         return;
       }
 
@@ -128,6 +144,7 @@ export default function AirlockApp() {
         return;
       }
 
+      sessionStartInFlight.current = true;
       const cleanup = startIgnitionLogs(input.type);
 
       setSession({
@@ -149,9 +166,6 @@ export default function AirlockApp() {
           setError('Session failed to start');
         } else if (result.status === 'running') {
           setLogs((prev) => [...prev, `[sys] Container sealed — ${result.sessionId.slice(0, 12)}`]);
-          if (result.vncUrl) {
-            setLogs((prev) => [...prev, `[vnc] Stream at ${result.vncUrl}`]);
-          }
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -160,6 +174,7 @@ export default function AirlockApp() {
         setLogs((prev) => [...prev, `[err] ${message}`]);
       } finally {
         cleanup();
+        sessionStartInFlight.current = false;
       }
     },
     [startIgnitionLogs, canStartSession, readiness],
@@ -248,7 +263,8 @@ export default function AirlockApp() {
     const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
       setSession(event.session);
       if (event.session.status === 'running' && event.session.vncUrl) {
-        setLogs((prev) => [...prev, `[vnc] Stream at ${event.session.vncUrl}`]);
+        const streamLine = `[vnc] Stream at ${event.session.vncUrl}`;
+        setLogs((prev) => (prev.includes(streamLine) ? prev : [...prev, streamLine]));
       }
     });
 
