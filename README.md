@@ -17,13 +17,14 @@ Airlock is a hard fork of the OpenClaw monorepo architecture, entirely gutted of
 | | |
 |---|---|
 | First-run sandbox setup | ![Preparing your sandbox](docs/assets/first-run-progress.png) |
-| Session starting (hardened workspace) | ![Orchestrating isolation](docs/assets/main-session.png) |
 | Session ended (analyze & export) | ![Session analysis](docs/assets/session-export.png) |
 | Ready to detonate | ![Idle drop zone](docs/assets/cleanup-idle.png) |
 
-**Short demo (drop → sandbox → destroy → analysis):**
+**Short demo (first-run → idle → post-session):**
 
-![Airlock core flow](docs/assets/airlock-demo.gif)
+![Airlock setup and idle flow](docs/assets/airlock-demo.gif)
+
+> **TODO:** Add a screenshot of an **active session** with the KasmVNC desktop visible, captured on a real GPU desktop (headless CI VMs cannot render the VNC canvas).
 
 Captured on a clean Linux VM with Docker Engine, Xvfb, and builds from `main` (see [clean-machine test](docs/CLEAN_MACHINE_TEST.md)).
 

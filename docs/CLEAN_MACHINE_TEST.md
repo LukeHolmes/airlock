@@ -64,7 +64,8 @@ No isolation settings were weakened to pass tests.
 2. **Duplicate ignition log lines** — overlapping session start (second-instance argv picked the Electron binary path; duplicate IPC log appends). Fixed with `sessionStartInFlight`, deduped setup log lines, and safer `pickOpenablePath()` for CLI/second-instance file opens.
 3. **False “Start Docker Desktop” banner on CLI open** — `readiness` was still `null` when `airlock:open-file` fired, so the renderer treated Docker as unavailable. Fixed by refreshing readiness in `startSession`, queueing opens until sandbox setup completes, and awaiting readiness in main before delivering CLI paths.
 4. **Session start crash on Node 24 (undici)** — `fetch()` during VNC readiness probes could throw `assert(!this.paused)`. Replaced with `node:http` probes in `waitForVncReady`.
-5. **Bundled sandbox build failed without BuildKit** — `ensureSandboxImageReady` used dockerode’s legacy `buildImage`, which cannot parse heredoc `COPY` or set `TARGETARCH`. **Fix:** prefer `docker buildx build --load` with `TARGETARCH` build-arg; default `ARG TARGETARCH=amd64` in Dockerfile; `pnpm sandbox:build` uses buildx.
+5. **Active session workspace squeezed to a thin strip** — `<main>` used `items-center justify-center`, so the `h-full` workspace panel did not stretch on the cross axis. Active view now uses stretch layout; VNC iframe is `absolute inset-0` inside a `flex-1 min-h-0` region.
+6. **Bundled sandbox build failed without BuildKit** — `ensureSandboxImageReady` used dockerode’s legacy `buildImage`, which cannot parse heredoc `COPY` or set `TARGETARCH`. **Fix:** prefer `docker buildx build --load` with `TARGETARCH` build-arg; default `ARG TARGETARCH=amd64` in Dockerfile; `pnpm sandbox:build` uses buildx.
 2. **`pnpm sandbox:build` on legacy docker** — fails without buildx (documented; CI already uses Buildx).
 
 ### Not fixed (larger / follow-up)
@@ -81,7 +82,7 @@ No isolation settings were weakened to pass tests.
 | Sandbox smoke log | `/opt/cursor/artifacts/sandbox-smoke.log` |
 | Session export sample JSON | `/opt/cursor/artifacts/session-export-sample.json` |
 | First-run setup log | `/opt/cursor/artifacts/first-run-setup.log` |
-| README screenshots | `docs/assets/first-run-progress.png`, `main-session.png`, `session-export.png`, `cleanup-idle.png` |
+| README screenshots | `docs/assets/first-run-progress.png`, `session-export.png`, `cleanup-idle.png` (active-session desktop capture deferred — needs GPU host) |
 | Demo GIF (~220 KB, 960×600, ~18s) | `docs/assets/airlock-demo.gif` |
 | Mirror copies | `/opt/cursor/artifacts/` (same filenames) |
 

@@ -72,6 +72,7 @@ export default function AirlockApp() {
   const pendingSessionInput = useRef<AirlockInput | null>(null);
 
   const viewState = viewStateFromSession(session);
+  const workspaceFillsViewport = viewState === 'active';
   const canStartSession = (readiness?.canStartSession ?? false) && !firstRun.visible;
 
   const startIgnitionLogs = useCallback(
@@ -548,7 +549,13 @@ export default function AirlockApp() {
         </div>
       )}
 
-      <main className="flex-1 relative flex items-center justify-center p-4 md:p-8 z-0">
+      <main
+        className={`flex-1 relative z-0 min-h-0 p-4 md:p-8 flex ${
+          workspaceFillsViewport
+            ? 'flex-col items-stretch justify-stretch'
+            : 'items-center justify-center'
+        }`}
+      >
         <AnimatePresence mode="wait">
           {viewState === 'idle' && (
             <motion.div
@@ -718,7 +725,7 @@ export default function AirlockApp() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              className="w-full h-full flex flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
+              className="flex flex-1 min-h-0 w-full flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
             >
               <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
                 <div className="flex items-center gap-1.5 opacity-50">
