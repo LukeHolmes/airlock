@@ -9,6 +9,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -17,6 +18,7 @@ import {
   executeAirlockSession,
   destroyAirlockSession,
   analyzeSession,
+  prepareSessionExport,
   validateDrop,
   configureSandboxImage,
   ensureSandboxImageReady,
@@ -33,6 +35,7 @@ import {
   type DropValidationResult,
   type EnsureSandboxImageResult,
   type SessionAnalysisResult,
+  type SessionExportResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -334,6 +337,36 @@ function registerIpcHandlers(): void {
     async (_event, sessionId: string): Promise<SessionAnalysisResult> => {
       console.log(`[ipc] analyzeSession ${sessionId.slice(0, 12)}`);
       return analyzeSession(sessionId);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SESSION_EXPORT,
+    async (event, sessionId: string): Promise<SessionExportResult> => {
+      console.log(`[ipc] exportSession ${sessionId.slice(0, 12)}`);
+      try {
+        const prepared = await prepareSessionExport(sessionId, VERSION);
+        const parent = BrowserWindow.fromWebContents(event.sender);
+        const saveOptions = {
+          title: 'Export session',
+          defaultPath: prepared.suggestedFileName,
+          filters: [{ name: 'JSON', extensions: ['json'] as string[] }],
+        };
+        const { canceled, filePath } = parent
+          ? await dialog.showSaveDialog(parent, saveOptions)
+          : await dialog.showSaveDialog(saveOptions);
+
+        if (canceled || !filePath) {
+          return { ok: false, canceled: true };
+        }
+
+        await writeFile(filePath, prepared.json, 'utf8');
+        return { ok: true, filePath };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[ipc] exportSession failed: ${message}`);
+        return { ok: false, canceled: false, error: message };
+      }
     },
   );
 

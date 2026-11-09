@@ -65,6 +65,8 @@ export default function AirlockApp() {
   const [networkEnabled, setNetworkEnabled] = useState(false);
   const [urlInput, setUrlInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<SessionAnalysisResult | null>(null);
+  const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
   const [showSetup, setShowSetup] = useState(false);
   const [setupStatus, setSetupStatus] = useState<SetupStatus>('idle');
@@ -346,6 +348,7 @@ export default function AirlockApp() {
     if (!session || session.status !== 'destroyed' || !ipc) return;
 
     try {
+      setExportMessage(null);
       const result = await ipc.analyzeSession(session.sessionId);
       setAnalysisResult(result);
     } catch (err: unknown) {
@@ -353,6 +356,27 @@ export default function AirlockApp() {
       setError(message);
     }
   }, [session]);
+
+  const handleExportSession = useCallback(async () => {
+    if (!analysisResult || !ipc) return;
+
+    setIsExporting(true);
+    setExportMessage(null);
+
+    try {
+      const result = await ipc.exportSession(analysisResult.sessionId);
+      if (result.ok) {
+        setExportMessage(`Saved to ${result.filePath}`);
+      } else if (!result.canceled) {
+        setError(result.error);
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [analysisResult]);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -660,13 +684,30 @@ export default function AirlockApp() {
               {analysisResult.analysis.recommendation}
             </p>
 
-            <button
-              type="button"
-              onClick={() => setAnalysisResult(null)}
-              className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] font-mono text-[#ECEFF3]"
-            >
-              Close
-            </button>
+            {exportMessage && (
+              <p className="text-[12px] text-[#3DE8D4] font-mono mb-3 break-all">{exportMessage}</p>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleExportSession()}
+                disabled={isExporting}
+                className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium disabled:opacity-50"
+              >
+                {isExporting ? 'Exporting…' : 'Export session'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAnalysisResult(null);
+                  setExportMessage(null);
+                }}
+                className="px-3 py-1.5 bg-[#23272F] rounded-[4px] text-[12px] font-mono text-[#ECEFF3]"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

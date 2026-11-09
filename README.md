@@ -222,7 +222,7 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 - [ ] Auto-setup UX on first launch (progress UI)
 - [x] App icon for installers
 - [x] End-user setup docs (`docs/`)
-- [ ] Persistent artefact storage + export
+- [x] Opt-in session export (JSON to disk)
 
 **Still open**
 
