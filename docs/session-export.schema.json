@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://airlock.local/schemas/session-export.schema.json",
+  "title": "Airlock session export",
+  "description": "Opt-in JSON export written when the user chooses Export session. Contains in-memory session metadata, captured log artefacts (no raw dropped file bytes), and the deterministic analysis summary.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "exportedAt", "appVersion", "session", "artefacts", "analysis"],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1,
+      "description": "Increment when breaking export shape changes are introduced."
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "appVersion": {
+      "type": "string"
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sessionId", "metadata", "input"],
+      "properties": {
+        "sessionId": { "type": "string", "format": "uuid" },
+        "containerId": { "type": "string" },
+        "metadata": {
+          "type": "object",
+          "required": ["startTime", "inputType", "networkMode"],
+          "properties": {
+            "startTime": { "type": "number" },
+            "endTime": { "type": "number" },
+            "exitReason": {
+              "type": "string",
+              "enum": ["user_destroy", "crash", "error"]
+            },
+            "inputType": { "type": "string", "enum": ["file", "url"] },
+            "networkMode": { "type": "string", "enum": ["isolated", "enabled"] }
+          }
+        },
+        "input": {
+          "type": "object",
+          "required": ["type", "value"],
+          "properties": {
+            "type": { "type": "string", "enum": ["file", "url"] },
+            "value": { "type": "string" }
+          }
+        },
+        "inputFingerprint": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["fileName", "sizeBytes", "mimeType", "extension", "sha256"],
+              "properties": {
+                "fileName": { "type": "string" },
+                "sizeBytes": { "type": "integer", "minimum": 0 },
+                "mimeType": { "type": "string" },
+                "extension": { "type": "string" },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url"],
+              "properties": {
+                "url": { "type": "string", "format": "uri" }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "artefacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["logs"],
+      "properties": {
+        "logs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ts", "event"],
+            "properties": {
+              "ts": { "type": "number" },
+              "event": { "type": "string" },
+              "payload": { "type": "object" }
+            }
+          }
+        }
+      }
+    },
+    "analysis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "riskLevel", "observations", "signals", "recommendation"],
+      "properties": {
+        "summary": { "type": "string" },
+        "riskLevel": { "type": "string", "enum": ["low", "medium", "high"] },
+        "observations": { "type": "array", "items": { "type": "string" } },
+        "signals": { "type": "array", "items": { "type": "string" } },
+        "recommendation": { "type": "string" }
+      }
+    }
+  }
+}

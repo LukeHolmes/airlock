@@ -14,6 +14,10 @@ export {
   logEvent,
   getSessionArtefacts,
   analyzeSession,
+  prepareSessionExport,
+  serializeSessionExport,
+  formatSessionExportJson,
+  SESSION_EXPORT_SCHEMA_VERSION,
 } from './session/index.js';
 
 export {
@@ -56,4 +60,6 @@ export type {
   SessionArtefacts,
   SessionAnalysisResult,
   LightweightAnalysis,
+  SessionExportDocument,
+  PreparedSessionExport,
 } from './session/index.js';

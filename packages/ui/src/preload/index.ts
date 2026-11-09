@@ -14,6 +14,7 @@ import {
   type DropValidationResult,
   type EnsureSandboxImageResult,
   type SessionAnalysisResult,
+  type SessionExportResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -29,6 +30,10 @@ async function destroySession(session: AirlockSession): Promise<AirlockSession> 
 
 async function analyzeSession(sessionId: string): Promise<SessionAnalysisResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_ANALYZE, sessionId);
+}
+
+async function exportSession(sessionId: string): Promise<SessionExportResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_EXPORT, sessionId);
 }
 
 function onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void {
@@ -103,6 +108,7 @@ const airlockApi: AirlockIpcApi = {
   createSession,
   destroySession,
   analyzeSession,
+  exportSession,
   onSessionStarted,
   onSessionEnded,
   onSessionError,

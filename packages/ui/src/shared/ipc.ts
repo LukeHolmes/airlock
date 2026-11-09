@@ -10,6 +10,7 @@ export const IPC_CHANNELS = {
   SESSION_CREATE: 'airlock:session:create',
   SESSION_DESTROY: 'airlock:session:destroy',
   SESSION_ANALYZE: 'airlock:session:analyze',
+  SESSION_EXPORT: 'airlock:session:export',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -73,6 +74,11 @@ export type SessionAnalysisResult = {
     recommendation: string;
   };
 };
+
+export type SessionExportResult =
+  | { ok: true; filePath: string }
+  | { ok: false; canceled: true }
+  | { ok: false; canceled: false; error: string };
 
 export type AirlockReadiness = {
   docker: { available: boolean };
@@ -138,6 +144,7 @@ export interface AirlockIpcApi {
   createSession(input: AirlockInput): Promise<AirlockSession>;
   destroySession(session: AirlockSession): Promise<AirlockSession>;
   analyzeSession(sessionId: string): Promise<SessionAnalysisResult>;
+  exportSession(sessionId: string): Promise<SessionExportResult>;
 
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;
   onSessionEnded(callback: (event: SessionEndedEvent) => void): () => void;
