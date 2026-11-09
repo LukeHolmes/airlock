@@ -71,7 +71,7 @@ RUN apk add --no-cache \
 # ------------------------------------------------------------------------------
 FROM base AS kasmvnc
 
-ARG TARGETARCH
+ARG TARGETARCH=amd64
 
 # KasmVNC version configuration
 ENV KASMVNC_VER="1.4.1"

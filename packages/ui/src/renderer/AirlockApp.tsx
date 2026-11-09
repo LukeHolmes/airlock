@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShieldCheck,
@@ -67,11 +67,20 @@ export default function AirlockApp() {
 
   const firstRun = useFirstRunSetup(ipc, readiness, handleReadinessRefresh);
 
+  const sessionStartInFlight = useRef(false);
+  const ignitionIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pendingSessionInput = useRef<AirlockInput | null>(null);
+
   const viewState = viewStateFromSession(session);
+  const workspaceFillsViewport = viewState === 'active';
   const canStartSession = (readiness?.canStartSession ?? false) && !firstRun.visible;
 
   const startIgnitionLogs = useCallback(
     (inputType: 'file' | 'url' = 'file') => {
+      if (ignitionIntervalRef.current) {
+        clearInterval(ignitionIntervalRef.current);
+        ignitionIntervalRef.current = null;
+      }
       setLogs([]);
       setError(null);
 
@@ -104,10 +113,15 @@ export default function AirlockApp() {
           step++;
         } else {
           clearInterval(interval);
+          ignitionIntervalRef.current = null;
         }
       }, 400);
+      ignitionIntervalRef.current = interval;
 
-      return () => clearInterval(interval);
+      return () => {
+        clearInterval(interval);
+        ignitionIntervalRef.current = null;
+      };
     },
     [networkEnabled],
   );
@@ -119,15 +133,31 @@ export default function AirlockApp() {
         return;
       }
 
-      if (!canStartSession) {
-        if (!readiness?.docker.available) {
-          setError('Start Docker Desktop, then click Retry on the setup screen.');
-        } else {
-          setError('Complete sandbox setup before opening a workspace.');
-        }
+      if (sessionStartInFlight.current) {
         return;
       }
 
+      const activeReadiness = readiness ?? (await ipc.getReadiness());
+      if (readiness === null) {
+        setReadiness(activeReadiness);
+      }
+
+      const readyForSession =
+        activeReadiness.canStartSession &&
+        activeReadiness.docker.available &&
+        activeReadiness.sandboxImage.available;
+
+      if (!readyForSession || firstRun.visible) {
+        if (!activeReadiness.docker.available) {
+          setError('Start Docker Desktop, then click Retry on the setup screen.');
+          return;
+        }
+        pendingSessionInput.current = input;
+        setError(null);
+        return;
+      }
+
+      sessionStartInFlight.current = true;
       const cleanup = startIgnitionLogs(input.type);
 
       setSession({
@@ -149,9 +179,6 @@ export default function AirlockApp() {
           setError('Session failed to start');
         } else if (result.status === 'running') {
           setLogs((prev) => [...prev, `[sys] Container sealed — ${result.sessionId.slice(0, 12)}`]);
-          if (result.vncUrl) {
-            setLogs((prev) => [...prev, `[vnc] Stream at ${result.vncUrl}`]);
-          }
         }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -160,10 +187,20 @@ export default function AirlockApp() {
         setLogs((prev) => [...prev, `[err] ${message}`]);
       } finally {
         cleanup();
+        sessionStartInFlight.current = false;
       }
     },
-    [startIgnitionLogs, canStartSession, readiness],
+    [startIgnitionLogs, readiness, firstRun.visible],
   );
+
+  useEffect(() => {
+    if (!ipc || !canStartSession || !pendingSessionInput.current) {
+      return;
+    }
+    const input = pendingSessionInput.current;
+    pendingSessionInput.current = null;
+    void startSession(input);
+  }, [canStartSession, startSession, ipc]);
 
   const handleFilePath = useCallback(
     async (filePath: string) => {
@@ -248,7 +285,8 @@ export default function AirlockApp() {
     const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
       setSession(event.session);
       if (event.session.status === 'running' && event.session.vncUrl) {
-        setLogs((prev) => [...prev, `[vnc] Stream at ${event.session.vncUrl}`]);
+        const streamLine = `[vnc] Stream at ${event.session.vncUrl}`;
+        setLogs((prev) => (prev.includes(streamLine) ? prev : [...prev, streamLine]));
       }
     });
 
@@ -511,7 +549,13 @@ export default function AirlockApp() {
         </div>
       )}
 
-      <main className="flex-1 relative flex items-center justify-center p-4 md:p-8 z-0">
+      <main
+        className={`flex-1 relative z-0 min-h-0 p-4 md:p-8 flex ${
+          workspaceFillsViewport
+            ? 'flex-col items-stretch justify-stretch'
+            : 'items-center justify-center'
+        }`}
+      >
         <AnimatePresence mode="wait">
           {viewState === 'idle' && (
             <motion.div
@@ -681,7 +725,7 @@ export default function AirlockApp() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              className="w-full h-full flex flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
+              className="flex flex-1 min-h-0 w-full flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
             >
               <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
                 <div className="flex items-center gap-1.5 opacity-50">

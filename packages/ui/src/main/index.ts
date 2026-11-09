@@ -9,6 +9,7 @@
  */
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +28,7 @@ import {
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
-import { refreshReadiness } from './readiness.js';
+import { getReadiness, refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
 import {
   IPC_CHANNELS,
@@ -75,6 +76,53 @@ function logSessionEvent(
     status: session.status,
     ...extra,
   });
+}
+
+function pickOpenablePath(argv: string[]): string | undefined {
+  const ignoredSuffixes = ['electron', 'airlock', 'Airlock'];
+
+  return [...argv].reverse().find((arg) => {
+    if (!arg || arg.startsWith('-') || arg === '.') {
+      return false;
+    }
+    if (arg.includes('node_modules/electron') || arg.includes('/.pnpm/')) {
+      return false;
+    }
+    if (ignoredSuffixes.some((suffix) => arg.endsWith(suffix))) {
+      return false;
+    }
+    if (arg.startsWith('http://') || arg.startsWith('https://')) {
+      return false;
+    }
+    return existsSync(arg);
+  });
+}
+
+async function deliverOpenFileToRenderer(filePath: string): Promise<void> {
+  if (!mainWindow) {
+    return;
+  }
+
+  const send = () => {
+    mainWindow?.webContents.send('airlock:open-file', filePath);
+  };
+
+  const deliver = async () => {
+    try {
+      await getReadiness();
+    } catch {
+      // Renderer will queue the open until sandbox setup finishes.
+    }
+    send();
+  };
+
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      void deliver();
+    });
+  } else {
+    await deliver();
+  }
 }
 
 function getAppIconPath(): string {
@@ -441,6 +489,11 @@ app.whenReady().then(async () => {
   mainWindow = createMainWindow();
   void ensureReadinessNotice();
 
+  const cliFile = pickOpenablePath(process.argv);
+  if (cliFile) {
+    void deliverOpenFileToRenderer(cliFile);
+  }
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       mainWindow = createMainWindow();
@@ -506,9 +559,9 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
 
-      const fileOrUrl = argv.find((arg) => !arg.startsWith('--'));
-      if (fileOrUrl && !fileOrUrl.startsWith('http://') && !fileOrUrl.startsWith('https://')) {
-        mainWindow.webContents.send('airlock:open-file', fileOrUrl);
+      const fileOrUrl = pickOpenablePath(argv);
+      if (fileOrUrl) {
+        void deliverOpenFileToRenderer(fileOrUrl);
       }
     }
   });

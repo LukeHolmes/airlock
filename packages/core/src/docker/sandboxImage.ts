@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -216,6 +217,68 @@ async function pullImage(
   });
 }
 
+function resolveDockerTargetArch(): string {
+  const arch = process.arch;
+  if (arch === 'arm64') {
+    return 'arm64';
+  }
+  return 'amd64';
+}
+
+async function buildImageWithBuildx(
+  buildContextPath: string,
+  onProgress?: EnsureSandboxImageOptions['onProgress'],
+): Promise<void> {
+  const targetArch = resolveDockerTargetArch();
+
+  await new Promise<void>((resolve, reject) => {
+    const args = [
+      'buildx',
+      'build',
+      '--load',
+      '--build-arg',
+      `TARGETARCH=${targetArch}`,
+      '-t',
+      LOCAL_SANDBOX_IMAGE,
+      buildContextPath,
+    ];
+
+    const proc = spawn('docker', args, {
+      env: { ...process.env, DOCKER_BUILDKIT: '1' },
+    });
+
+    const forwardOutput = (chunk: Buffer) => {
+      const text = chunk.toString();
+      for (const line of text.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+          continue;
+        }
+        emitProgress(onProgress, {
+          phase: 'building',
+          message: `Building ${LOCAL_SANDBOX_IMAGE}`,
+          detail: trimmed,
+        });
+      }
+    };
+
+    proc.stdout.on('data', forwardOutput);
+    proc.stderr.on('data', forwardOutput);
+
+    proc.on('error', (error) => {
+      reject(error);
+    });
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+      reject(new Error(`docker buildx build exited with code ${code ?? 'unknown'}`));
+    });
+  });
+}
+
 async function buildImageFromContext(
   docker: Dockerode,
   buildContextPath: string,
@@ -227,12 +290,26 @@ async function buildImageFromContext(
     detail: buildContextPath,
   });
 
+  try {
+    await buildImageWithBuildx(buildContextPath, onProgress);
+    return;
+  } catch (buildxError) {
+    emitProgress(onProgress, {
+      phase: 'building',
+      message: `BuildKit build unavailable, using legacy Docker API`,
+      detail: buildxError instanceof Error ? buildxError.message : String(buildxError),
+    });
+  }
+
   const stream = await docker.buildImage(
     {
       context: buildContextPath,
       src: [...SANDBOX_BUILD_FILES],
     },
-    { t: LOCAL_SANDBOX_IMAGE },
+    {
+      t: LOCAL_SANDBOX_IMAGE,
+      buildargs: { TARGETARCH: resolveDockerTargetArch() },
+    },
   );
 
   await followDockerStream(docker, stream, (detail) => {

@@ -11,7 +11,7 @@
     "build": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build",
     "package": "pnpm --filter @airlock/core build && pnpm --filter @airlock/ui build && electron-builder",
     "prepackage": "node scripts/verify-sandbox-bundle.mjs",
-    "sandbox:build": "docker build -t airlock/sandbox:latest ./packages/sandbox",
+    "sandbox:build": "DOCKER_BUILDKIT=1 docker buildx build --load -t airlock/sandbox:latest ./packages/sandbox",
     "sandbox:smoke": "bash scripts/sandbox-smoke.sh",
     "core:smoke": "pnpm --filter @airlock/core build && node --import ./scripts/register-core.mjs scripts/core-smoke.mjs",
     "airlock:test": "pnpm --filter @airlock/core build && pnpm --filter @airlock/test-harness build && pnpm --filter @airlock/test-harness smoke",

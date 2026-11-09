@@ -14,7 +14,7 @@ export default function VncViewer({ vncUrl, sessionId }: VncViewerProps) {
       <iframe
         title={sessionId ? `KasmVNC — ${sessionId.slice(0, 12)}` : 'KasmVNC stream'}
         src={vncUrl}
-        className="w-full h-full border-0 bg-[#08090B]"
+        className="absolute inset-0 h-full w-full border-0 bg-[#08090B]"
         allow="clipboard-read; clipboard-write"
       />
     );
