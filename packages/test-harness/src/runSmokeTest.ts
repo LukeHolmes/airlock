@@ -8,7 +8,7 @@ import {
   checkContainerExists,
   cleanupStaleAirlockContainers,
   getMappedPort,
-  listAirlockContainers,
+  listAirlockContainersWithRetry,
   waitForContainerRunning,
   waitForVnc,
 } from './utils.js';
@@ -117,7 +117,7 @@ async function main(): Promise<number> {
       passed: destroyed,
     });
 
-    const orphans = await listAirlockContainers();
+    const orphans = await listAirlockContainersWithRetry();
     steps.push({
       label: 'No orphan containers',
       passed: orphans.length === 0,
