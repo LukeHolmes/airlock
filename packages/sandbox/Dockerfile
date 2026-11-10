@@ -71,7 +71,8 @@ RUN apk add --no-cache \
 # ------------------------------------------------------------------------------
 FROM base AS kasmvnc
 
-ARG TARGETARCH=amd64
+# BuildKit sets TARGETARCH per platform; do not default to amd64 (breaks arm64/qemu builds).
+ARG TARGETARCH
 
 # KasmVNC version configuration
 ENV KASMVNC_VER="1.4.1"
