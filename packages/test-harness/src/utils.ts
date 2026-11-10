@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process';
 
+import { docker } from '@airlock/core';
 import Dockerode from 'dockerode';
 
 const VNC_CONTAINER_PORT = '6901/tcp';
@@ -87,42 +88,31 @@ export async function waitForVnc(port: number, timeoutMs = 90000): Promise<boole
 export async function listAirlockContainers(): Promise<
   Array<{ id: string; name: string; state: string }>
 > {
-  const docker = getDocker();
-  const containers = await docker.listContainers({
-    all: true,
-    filters: {
-      label: ['airlock_session=true'],
-    },
-  });
-
+  const client = getDocker();
+  const containers = await docker.listManagedAirlockContainers(client);
   return containers.map((container) => ({
-    id: container.Id,
-    name: container.Names[0]?.replace(/^\//, '') ?? container.Id.slice(0, 12),
-    state: container.State,
+    id: container.id,
+    name: container.name,
+    state: container.state,
   }));
 }
 
 export async function cleanupStaleAirlockContainers(): Promise<number> {
-  const docker = getDocker();
-  const stale = await listAirlockContainers();
-  let removed = 0;
+  const client = getDocker();
+  const result = await docker.reclaimStaleManagedContainers(client, process.pid);
+  return result.destroyed.length;
+}
 
-  for (const entry of stale) {
-    const container = docker.getContainer(entry.id);
-    try {
-      try {
-        await container.stop({ t: 5 });
-      } catch {
-        // already stopped
-      }
-      await container.remove({ force: true, v: true });
-      removed += 1;
-    } catch {
-      // ignore individual cleanup failures
-    }
+export async function listAirlockContainersWithRetry(
+  attempts = 5,
+  delayMs = 400,
+): Promise<Array<{ id: string; name: string; state: string }>> {
+  let last = await listAirlockContainers();
+  for (let attempt = 1; attempt < attempts && last.length > 0; attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    last = await listAirlockContainers();
   }
-
-  return removed;
+  return last;
 }
 
 export async function waitForContainerRunning(

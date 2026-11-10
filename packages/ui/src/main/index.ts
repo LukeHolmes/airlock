@@ -48,7 +48,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const VERSION = '0.3.1';
+const VERSION = '0.4.0';
 
 function parseSessionPort(session: AirlockSession): number | undefined {
   if (!session.vncUrl) {
@@ -486,6 +486,14 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   docker.installCrashTrap();
 
+  const readiness = await refreshReadiness();
+  if (readiness.docker.available) {
+    const reclaimed = await docker.recoverStaleManagedContainers();
+    if (reclaimed > 0) {
+      console.log(`[main] Reclaimed ${reclaimed} stale Airlock container(s) from prior run`);
+    }
+  }
+
   mainWindow = createMainWindow();
   void ensureReadinessNotice();
 
@@ -510,24 +518,26 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', async (event) => {
-  console.log('[main] before-quit: destroying all containers...');
+  console.log('[main] before-quit: destroying managed containers...');
   event.preventDefault();
 
   try {
-    const sessions = docker.getActiveSessions();
-    await Promise.all(
-      sessions.map((s) =>
-        docker.destroyContainer(s.id).catch((err) => {
-          console.error(`[main] Failed to destroy ${s.id}:`, err);
-        }),
-      ),
-    );
+    await docker.shutdownManagedContainers();
   } catch (error) {
     console.error('[main] Error during cleanup:', error);
+    violentGarbageCollectFallback();
   }
 
   app.exit(0);
 });
+
+function violentGarbageCollectFallback(): void {
+  try {
+    docker.violentGarbageCollect();
+  } catch {
+    // best-effort sync cleanup when dockerode shutdown fails
+  }
+}
 
 app.on('certificate-error', (event, _webContents, url, _error, _certificate, callback) => {
   if (process.env.VITE_DEV_SERVER_URL ?? url.startsWith('http://127.0.0.1:')) {

@@ -15,9 +15,25 @@ export {
   isContainerRunning,
   createFileContainer,
   createUrlContainer,
+  shutdownManagedContainers,
+  recoverStaleManagedContainers,
+  listManagedAirlockContainers,
   type AirlockContainerConfig,
   type ContainerSession,
 } from './ContainerManager.js';
+
+export {
+  isProcessAlive,
+  isReclaimableManagedContainer,
+  isManagedAirlockLabels,
+  parseOwnerPid,
+  waitForContainerAbsent,
+  forceDestroyContainerId,
+  reclaimStaleManagedContainers,
+  destroyManagedContainersForOwner,
+  type ManagedContainerSummary,
+  type ManagedCleanupResult,
+} from './containerLifecycle.js';
 
 export { AIRLOCK_ISOLATED_NETWORK, ensureIsolatedNetwork } from './network.js';
 

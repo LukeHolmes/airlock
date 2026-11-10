@@ -20,6 +20,15 @@ import http from 'node:http';
 
 import Dockerode from 'dockerode';
 import { log } from '../debug/logger.js';
+import {
+  MANAGED_LABEL,
+  OWNER_PID_LABEL,
+  forceDestroyContainerId,
+  reclaimStaleManagedContainers,
+  destroyManagedContainersForOwner,
+  listManagedAirlockContainers,
+  MAX_MANAGED_CLEANUP,
+} from './containerLifecycle.js';
 import { ensureIsolatedNetwork } from './network.js';
 import { serializeSeccompProfile } from './seccomp.js';
 
@@ -178,11 +187,31 @@ export function installCrashTrap(): void {
  * Violent garbage collection: synchronously kill and remove all
  * containers in the session registry.
  */
+function violentGarbageCollectManagedSync(ownerPid: number): void {
+  try {
+    const output = execSync(
+      `docker ps -aq --filter label=${MANAGED_LABEL}=true --filter label=${OWNER_PID_LABEL}=${ownerPid}`,
+      { encoding: 'utf8', timeout: 5000 },
+    )
+      .trim()
+      .split('\n')
+      .filter(Boolean);
+
+    for (const id of output.slice(0, MAX_MANAGED_CLEANUP)) {
+      try {
+        execSync(`docker rm -f ${id} 2>/dev/null`, { timeout: 5000 });
+        registry.unregister(id);
+      } catch {
+        // ignore per-container failures
+      }
+    }
+  } catch {
+    // Docker unavailable or CLI error — registry-only GC still ran below
+  }
+}
+
 export function violentGarbageCollect(): void {
   const sessions = registry.getAll();
-  if (sessions.length === 0) {
-    return;
-  }
 
   log('ERROR', 'Violent garbage collection triggered', {
     eventName: 'container.gc.triggered',
@@ -222,6 +251,8 @@ export function violentGarbageCollect(): void {
       });
     }
   }
+
+  violentGarbageCollectManagedSync(process.pid);
 }
 
 function getSeccompSecurityOpt(): string {
@@ -390,10 +421,11 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     OpenStdin: false,
     StdinOnce: false,
     Labels: {
-      'app.airlock.managed': 'true',
+      [MANAGED_LABEL]: 'true',
       airlock_session: 'true',
       'app.airlock.session': config.name,
       'app.airlock.created': new Date().toISOString(),
+      [OWNER_PID_LABEL]: String(process.pid),
     },
   };
 
@@ -435,6 +467,15 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
   const inspectAfterStart = await container.inspect();
   const initialUrls = resolveVncUrls(inspectAfterStart);
   const initialPort = parseHostPort(initialUrls.vncUrl);
+
+  registry.register({
+    id: inspectAfterStart.Id,
+    name: config.name,
+    createdAt: new Date(),
+    config,
+    vncUrl: initialUrls.vncUrl,
+    vncPageUrl: initialUrls.vncPageUrl,
+  });
 
   log('INFO', 'Port binding resolved', {
     eventName: 'container.start.port',
@@ -482,7 +523,7 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
 
 export async function destroyContainer(sessionId: string): Promise<void> {
   if (!registry.has(sessionId)) {
-    log('WARN', 'Container not in registry — may be already destroyed', {
+    log('WARN', 'Container not in registry — destroying managed container by id', {
       eventName: 'container.destroy.missing',
       phase: 'destroy',
       sessionId,
@@ -498,50 +539,54 @@ export async function destroyContainer(sessionId: string): Promise<void> {
   });
 
   const docker = getDocker();
-  const container = docker.getContainer(sessionId);
-
-  try {
-    await container.stop({ t: 10 });
-    log('INFO', 'Container stopped', {
-      eventName: 'container.destroy.stopped',
-      phase: 'destroy',
-      sessionId,
-      containerId: sessionId,
-    });
-  } catch {
-    log('WARN', 'Container stop failed, attempting kill', {
-      eventName: 'container.destroy.stop_failed',
-      phase: 'destroy',
-      sessionId,
-      containerId: sessionId,
-    });
-    try {
-      await container.kill();
-    } catch {
-      // Ignore — container may already be dead
-    }
-  }
-
-  try {
-    await container.remove({ force: true, v: true });
-    log('INFO', 'Container removed', {
-      eventName: 'container.destroy.removed',
-      phase: 'destroy',
-      sessionId,
-      containerId: sessionId,
-    });
-  } catch (e: unknown) {
-    log('WARN', 'Container removal failed', {
-      eventName: 'container.destroy.remove_failed',
-      phase: 'destroy',
-      sessionId,
-      containerId: sessionId,
-      error: e instanceof Error ? e.message : String(e),
-    });
-  }
+  const removed = await forceDestroyContainerId(docker, sessionId);
+  log(removed ? 'INFO' : 'WARN', removed ? 'Container removed' : 'Container removal incomplete', {
+    eventName: removed ? 'container.destroy.removed' : 'container.destroy.remove_failed',
+    phase: 'destroy',
+    sessionId,
+    containerId: sessionId,
+  });
 
   registry.unregister(sessionId);
 }
+
+export async function shutdownManagedContainers(): Promise<void> {
+  const docker = getDocker();
+  const registryIds = registry.getAll().map((session) => session.id);
+  try {
+    await destroyManagedContainersForOwner(docker, process.pid, { extraIds: registryIds });
+  } catch (error) {
+    log('WARN', 'Managed container shutdown failed', {
+      eventName: 'container.shutdown.failed',
+      phase: 'destroy',
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    for (const id of registryIds) {
+      registry.unregister(id);
+    }
+  }
+}
+
+export async function recoverStaleManagedContainers(): Promise<number> {
+  const docker = getDocker();
+  try {
+    const result = await reclaimStaleManagedContainers(docker, process.pid);
+    for (const id of result.destroyed) {
+      registry.unregister(id);
+    }
+    return result.destroyed.length;
+  } catch (error) {
+    log('WARN', 'Stale managed container recovery skipped', {
+      eventName: 'container.recover.failed',
+      phase: 'destroy',
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return 0;
+  }
+}
+
+export { listManagedAirlockContainers };
 
 export async function killContainer(sessionId: string): Promise<void> {
   const docker = getDocker();

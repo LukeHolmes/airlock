@@ -71,7 +71,7 @@ No isolation settings were weakened to pass tests.
 ### Not fixed (larger / follow-up)
 
 1. **Headless VNC canvas in Electron** — KasmVNC page loads (HTTP/VNC URL OK) but WebGL/canvas stays black under xvfb; manual testing on a real desktop still required for portfolio GIF showing live desktop.
-2. **Orphan containers after abrupt Electron exit** — `before-quit` destroys tracked sessions, but interrupted automation can leave `airlock-electron-*` containers; harness cleanup exists for CI, not UI quit edge cases.
+2. **Managed container cleanup** — Electron labels sandboxes with `app.airlock.managed=true` and `app.airlock.owner_pid`. On startup the main process reclaims only stale managed containers (owner PID dead or same process). `before-quit` and the crash trap call bounded `shutdownManagedContainers` / violent GC scoped to the current owner PID. Foreign live owners are never stopped. Regression: `packages/core` `containerLifecycle.test.js` + harness orphan check with post-destroy retry.
 3. **GHCR pre-release image** — `ghcr.io/lukeholmes/airlock-sandbox` tags pre-#32 lack KasmVNC `publicIP` fix; pull fallback may fail on air-gapped setups until new release tag (bundled build is the intended fallback).
 
 ## Artifact paths (this run)
