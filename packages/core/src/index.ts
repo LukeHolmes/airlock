@@ -104,6 +104,15 @@ export {
 } from './export/flattenedPdf.js';
 export { readGuestPlainClipboard } from './export/guestClipboard.js';
 
+export {
+  previewRemoveAirlockData,
+  removeAirlockData,
+  describeUserDataWipeTargets,
+  isRemovableAirlockSandboxImageRef,
+  type RemoveDataPreview,
+  type RemoveAirlockDataResult,
+} from './system/cleanUninstall.js';
+
 export type {
   AirlockInput,
   AirlockSession,

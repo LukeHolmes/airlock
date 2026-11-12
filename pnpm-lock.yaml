@@ -78,6 +78,9 @@ importers:
       '@airlock/core':
         specifier: workspace:*
         version: link:../core
+      dockerode:
+        specifier: ^4.0.2
+        version: 4.0.12
       framer-motion:
         specifier: ^11.0.0
         version: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -97,6 +100,9 @@ importers:
       '@testing-library/react':
         specifier: ^16.0.0
         version: 16.3.3(@testing-library/dom@10.4.2)(@types/react-dom@18.3.7(@types/react@18.3.31))(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      '@types/dockerode':
+        specifier: ^3.3.29
+        version: 3.3.47
       '@types/node':
         specifier: ^20.0.0
         version: 20.19.43

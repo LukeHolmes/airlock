@@ -299,6 +299,48 @@ Airlock's design draws from four open-source reference implementations:
 
 ---
 
+## Uninstalling Airlock
+
+### Windows
+
+1. **Remove the app:** Settings → Apps → Installed apps → **Airlock** → Uninstall, or run **Uninstall Airlock** from the Start Menu (NSIS installer).
+2. **Optional data wipe:** During uninstall, choose **No** on the prompt to keep local data (default), or **Yes** to delete the Airlock user-data folder and attempt removal of Airlock sandbox images via Docker.
+3. **User data location:** `%APPDATA%\Airlock` (or `%APPDATA%\airlock`).
+4. **Docker images** (only if not removed by the installer or in-app settings):
+
+```bash
+docker image rm -f airlock/sandbox:latest ghcr.io/lukeholmes/airlock-sandbox:latest
+```
+
+5. **Managed containers** (only Airlock-labelled):
+
+```bash
+docker ps -aq --filter label=app.airlock.managed=true | xargs -r docker rm -f
+```
+
+### macOS
+
+1. Quit Airlock, move **Airlock.app** from **Applications** to Trash, empty Trash.
+2. **User data:** `~/Library/Application Support/Airlock` (Electron `userData`).
+3. Remove images and managed containers:
+
+```bash
+docker image rm -f airlock/sandbox:latest ghcr.io/lukeholmes/airlock-sandbox:latest
+docker ps -aq --filter label=app.airlock.managed=true | xargs docker rm -f
+```
+
+Or use **Settings → Remove Airlock data** in the app before uninstalling.
+
+### Linux
+
+1. **AppImage:** delete the `Airlock-*.AppImage` file.
+2. **User data:** `~/.config/Airlock` (or the path shown in **Settings → Remove Airlock data**).
+3. Same `docker image rm` and `docker ps` filter commands as macOS.
+
+The in-app **Remove Airlock data** action (with confirmation) stops and removes containers with `app.airlock.managed=true` only, removes `airlock/sandbox` and `ghcr.io/lukeholmes/airlock-sandbox` images, and wipes user data including the receipt signing key. Export your public key first if you need to verify receipts signed with this install later.
+
+---
+
 ## Licence
 
 Apache-2.0 (see [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)).

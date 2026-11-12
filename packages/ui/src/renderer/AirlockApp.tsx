@@ -15,6 +15,7 @@ import VncViewer from './VncViewer';
 import NutritionLabelPanel from './NutritionLabelPanel';
 import type { TriageSessionState } from '@airlock/core/browser';
 import ReceiptToolbar from './ReceiptToolbar';
+import RemoveAirlockDataSettings from './RemoveAirlockDataSettings';
 import ReceiptExportPanel from './receiptExportPanel';
 import ClipboardSanitiseDrawer from './ClipboardSanitiseDrawer';
 import FlattenedPdfExportPanel from './FlattenedPdfExportPanel';
@@ -705,6 +706,14 @@ export default function AirlockApp() {
                   Detonate
                 </button>
               </form>
+
+              {ipc ? (
+                <RemoveAirlockDataSettings
+                  ipc={ipc}
+                  onStatus={(msg) => setReceiptVerifyMessage(msg)}
+                  onError={(msg) => setError(msg)}
+                />
+              ) : null}
 
               {session?.status === 'destroyed' && (
                 <div className="flex flex-col items-center gap-3">

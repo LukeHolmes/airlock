@@ -22,6 +22,8 @@ import {
   type ReceiptVerifyResult,
   type ReceiptExportPublicKeyResult,
   type ReceiptKeyStatus,
+  type RemoveDataPreview,
+  type RemoveAirlockDataOutcome,
   type SessionTriageSnapshot,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -140,6 +142,14 @@ async function openDockerDownload(): Promise<void> {
   return ipcRenderer.invoke(IPC_CHANNELS.OPEN_DOCKER_DOWNLOAD);
 }
 
+async function previewRemoveAirlockData(): Promise<RemoveDataPreview> {
+  return ipcRenderer.invoke(IPC_CHANNELS.REMOVE_DATA_PREVIEW);
+}
+
+async function removeAirlockData(): Promise<RemoveAirlockDataOutcome> {
+  return ipcRenderer.invoke(IPC_CHANNELS.REMOVE_AIRLOCK_DATA);
+}
+
 function onOpenFile(callback: (filePath: string) => void): () => void {
   const handler = (_event: Electron.IpcRendererEvent, filePath: string) => {
     callback(filePath);
@@ -173,6 +183,8 @@ const airlockApi: AirlockIpcApi = {
   onSandboxSetupProgress,
   openSetupGuide,
   openDockerDownload,
+  previewRemoveAirlockData,
+  removeAirlockData,
   getPathForFile: (file: File) => webUtils.getPathForFile(file),
   onOpenFile,
 };
