@@ -2,6 +2,7 @@
   "name": "airlock",
   "private": true,
   "version": "0.4.1",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=20",
     "pnpm": ">=9"
@@ -18,11 +19,11 @@
     "pretest:smoke": "pnpm build && pnpm sandbox:build",
     "typecheck": "pnpm --filter @airlock/core typecheck && pnpm --filter @airlock/ui typecheck",
     "test": "pnpm --filter @airlock/core test",
-    "lint": "eslint packages/core/src packages/ui/src --ext .ts,.tsx --ignore-pattern '**/_ref/**'",
-    "lint:fix": "eslint packages/*/src --ext .ts,.tsx --fix --ignore-pattern '**/_ref/**'",
+    "lint": "eslint packages/core/src packages/ui/src --ext .ts,.tsx",
+    "lint:fix": "eslint packages/*/src --ext .ts,.tsx --fix",
     "format": "prettier --write 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
     "format:check": "prettier --check 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
-    "ci:lint": "node scripts/check-renderer-core-imports.mjs && pnpm lint && pnpm format:check",
+    "ci:lint": "node scripts/check-renderer-core-imports.mjs && node scripts/check-openclaw-leftovers.mjs && pnpm lint && pnpm format:check",
     "ci:docker": "docker build -t airlock/sandbox:test ./packages/sandbox",
     "verify-receipt": "pnpm --filter @airlock/core build && node scripts/verify-receipt.mjs"
   },
@@ -38,7 +39,6 @@
       "dist/**/*",
       "build/icons/icon.png",
       "package.json",
-      "!**/_ref/**",
       "!src/**",
       "!node_modules/@airlock/core/src/**"
     ],

@@ -70,6 +70,5 @@ Open PRs after triage: **#23** (smoke test harness) and **#24** (Podman runtime 
 
 - **Cross-platform installers.** Unsigned apps hit Gatekeeper/SmartScreen warnings. Mitigation: ship Linux first and document workarounds.
 - **Docker dependency.** Demo GIF carries the story for portfolio viewers.
-- **Inherited `_ref/` code from OpenClaw.** Excluded from builds and packaging; consider removing post-MVP.
 - **Image size and pull time.** First-run progress UI mitigates; slimming is post-MVP.
 - **Security claims.** Keep wording conservative until AppArmor and independent review.
