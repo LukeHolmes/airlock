@@ -85,17 +85,23 @@ assert office.get("macros") or office.get("auto_exec") or any(
 print("✓ Triage + X-ray fixture expectations met")
 PY
 
-echo "Flatten: benign.pdf (pixel rebuild)"
+echo "Preparing one-page PDF for flatten smoke"
+docker run --rm --entrypoint convert \
+  -v "$FIXTURE_DIR:/out:rw" \
+  "$IMAGE" \
+  -size 200x200 xc:white "$FIXTURE_DIR/one-page.pdf"
+
+echo "Flatten: one-page.pdf (pixel rebuild)"
 docker run --rm \
   --network none \
   --cap-drop ALL \
   --entrypoint /usr/local/bin/airlock-flatten-pdf \
-  -v "$FIXTURE_DIR/benign.pdf:/input/target.pdf:ro" \
+  -v "$FIXTURE_DIR/one-page.pdf:/input/target.pdf:ro" \
   -v "$FIXTURE_DIR:/out:rw" \
   "$IMAGE" \
-  /input/target.pdf /out/flattened-benign.pdf
+  /input/target.pdf /out/flattened-one-page.pdf
 
-if grep -qi javascript "$FIXTURE_DIR/flattened-benign.pdf"; then
+if grep -qi javascript "$FIXTURE_DIR/flattened-one-page.pdf"; then
   echo "✗ Flattened PDF still contains JavaScript marker string"
   exit 1
 fi
