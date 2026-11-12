@@ -1,0 +1,61 @@
+#!/bin/sh
+# Extract plain text inside the sandbox (offline). Output UTF-8 on stdout path.
+set -eu
+if [ "$#" -ne 2 ]; then
+  echo "Usage: airlock-extract-plaintext <input> <output.txt>" >&2
+  exit 2
+fi
+in="$1"
+out="$2"
+if [ ! -f "$in" ]; then
+  echo "Input not found: $in" >&2
+  exit 1
+fi
+
+ext=$(printf '%s' "$in" | sed 's/.*\.//;s/.*\///' | tr '[:upper:]' '[:lower:]')
+
+case "$ext" in
+  pdf)
+    pdftotext -enc UTF-8 "$in" "$out"
+    ;;
+  doc|docx|dot|dotx|odt|ott|rtf|ppt|pptx|odp|xls|xlsx|ods|csv)
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
+    HOME="$tmpdir" libreoffice --headless --nologo --nolockcheck --convert-to txt --outdir "$tmpdir" "$in" >/dev/null 2>&1 || {
+      echo "LibreOffice conversion failed" >&2
+      exit 1
+    }
+    merged="$tmpdir/merged.txt"
+    : >"$merged"
+    for f in "$tmpdir"/*.txt; do
+      [ -f "$f" ] || continue
+      cat "$f" >>"$merged"
+      printf '\n' >>"$merged"
+    done
+    if [ ! -s "$merged" ]; then
+      echo "LibreOffice produced no text" >&2
+      exit 1
+    fi
+    cp "$merged" "$out"
+    ;;
+  txt|md|html|htm|xml|json|log)
+    cat "$in" >"$out"
+    ;;
+  *)
+    mime=$(file -b --mime-type "$in" 2>/dev/null || echo application/octet-stream)
+    case "$mime" in
+      application/pdf)
+        pdftotext -enc UTF-8 "$in" "$out"
+        ;;
+      text/*)
+        cat "$in" >"$out"
+        ;;
+      *)
+        echo "Unsupported type for plain-text export: $mime" >&2
+        exit 1
+        ;;
+    esac
+    ;;
+esac
+
+chmod 0644 "$out"

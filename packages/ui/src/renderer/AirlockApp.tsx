@@ -19,6 +19,8 @@ import RemoveAirlockDataSettings from './RemoveAirlockDataSettings';
 import ReceiptExportPanel from './receiptExportPanel';
 import ClipboardSanitiseDrawer from './ClipboardSanitiseDrawer';
 import FlattenedPdfExportPanel from './FlattenedPdfExportPanel';
+import PlainTextExportPanel from './PlainTextExportPanel';
+import { isPlainTextExportSupported } from '@airlock/core/browser';
 import FirstRunProgress from './FirstRunProgress';
 import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
@@ -827,6 +829,14 @@ export default function AirlockApp() {
                         />
                         {activeFilePath?.toLowerCase().endsWith('.pdf') ? (
                           <FlattenedPdfExportPanel
+                            session={session}
+                            ipc={ipc}
+                            onStatus={(msg) => setM4Status(msg)}
+                            onError={(msg) => setError(msg)}
+                          />
+                        ) : null}
+                        {activeFilePath && isPlainTextExportSupported(activeFilePath) ? (
+                          <PlainTextExportPanel
                             session={session}
                             ipc={ipc}
                             onStatus={(msg) => setM4Status(msg)}

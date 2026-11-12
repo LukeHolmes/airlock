@@ -17,6 +17,7 @@ import {
   type SessionAnalysisResult,
   type SessionExportResult,
   type FlattenedPdfExportResult,
+  type PlainTextExportResult,
   type ClipboardPullGuestResult,
   type ClipboardWriteSanitisedResult,
   type ReceiptVerifyResult,
@@ -48,6 +49,10 @@ async function exportSession(sessionId: string): Promise<SessionExportResult> {
 
 async function exportFlattenedPdf(session: AirlockSession): Promise<FlattenedPdfExportResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_FLATTENED_PDF_EXPORT, session);
+}
+
+async function exportPlainText(session: AirlockSession): Promise<PlainTextExportResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_PLAIN_TEXT_EXPORT, session);
 }
 
 async function pullGuestClipboardText(containerId: string): Promise<ClipboardPullGuestResult> {
@@ -166,6 +171,7 @@ const airlockApi: AirlockIpcApi = {
   analyzeSession,
   exportSession,
   exportFlattenedPdf,
+  exportPlainText,
   pullGuestClipboardText,
   writeSanitisedClipboard,
   verifyReceipt,
