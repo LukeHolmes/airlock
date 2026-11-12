@@ -22,7 +22,10 @@ export type EngineRuntimeStatus = {
 
 let cachedStatus: EngineRuntimeStatus | null = null;
 
-function summarize(probe: EngineProbeResult, hardening: { supported: boolean; reasons: string[] }): EngineRuntimeStatus {
+function summarize(
+  probe: EngineProbeResult,
+  hardening: { supported: boolean; reasons: string[] },
+): EngineRuntimeStatus {
   return {
     connected: true,
     kind: probe.kind,

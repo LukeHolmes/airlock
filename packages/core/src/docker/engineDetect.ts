@@ -11,12 +11,7 @@ export type EngineInfoSnapshot = {
 };
 
 export type ContainerEngineKind =
-  | 'docker'
-  | 'podman'
-  | 'orbstack'
-  | 'colima'
-  | 'rancher-desktop'
-  | 'unknown';
+  'docker' | 'podman' | 'orbstack' | 'colima' | 'rancher-desktop' | 'unknown';
 
 export type EngineProbeResult = {
   connected: boolean;
@@ -72,7 +67,13 @@ export function listEngineConnectionCandidates(): DockerEngineConnection[] {
   push(socketCandidate('docker', 'Docker (system)', '/var/run/docker.sock'));
   push(socketCandidate('podman', 'Podman', '/run/podman/podman.sock'));
   push(socketCandidate('podman', 'Podman', '/var/run/podman/podman.sock'));
-  push(socketCandidate('podman', 'Podman (user)', path.join(HOME, '.local/share/containers/podman/machine/podman.sock')));
+  push(
+    socketCandidate(
+      'podman',
+      'Podman (user)',
+      path.join(HOME, '.local/share/containers/podman/machine/podman.sock'),
+    ),
+  );
   push(socketCandidate('colima', 'Colima', path.join(HOME, '.colima/default/docker.sock')));
   push(socketCandidate('colima', 'Colima', path.join(HOME, '.colima/docker.sock')));
   push(socketCandidate('orbstack', 'OrbStack', path.join(HOME, '.orbstack/run/docker.sock')));
@@ -85,7 +86,13 @@ export function listEngineConnectionCandidates(): DockerEngineConnection[] {
     ),
   );
   push(socketCandidate('docker', 'Docker Desktop', path.join(HOME, '.docker/run/docker.sock')));
-  push(socketCandidate('docker', 'Docker Desktop (legacy)', path.join(HOME, '.docker/desktop/docker.sock')));
+  push(
+    socketCandidate(
+      'docker',
+      'Docker Desktop (legacy)',
+      path.join(HOME, '.docker/desktop/docker.sock'),
+    ),
+  );
 
   return out;
 }
