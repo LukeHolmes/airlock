@@ -122,3 +122,15 @@ if grep -qi javascript "$FIXTURE_DIR/flattened-one-page.pdf"; then
   exit 1
 fi
 echo "✓ Flattened PDF fixture has no /JavaScript byte marker"
+
+echo "Plain text: one-page.pdf (pdftotext in-container)"
+docker run --rm --network none --cap-drop ALL --user 0:0 --entrypoint sh \
+  -v "$FIXTURE_DIR/one-page.pdf:/input/target.pdf:ro" \
+  "$IMAGE" \
+  -c '/usr/local/bin/airlock-extract-plaintext /input/target.pdf /tmp/plain.txt && cat /tmp/plain.txt' \
+  >"$FIXTURE_DIR/benign-plain.txt"
+if [ ! -s "$FIXTURE_DIR/benign-plain.txt" ]; then
+  echo "✗ Plain-text extract produced empty output"
+  exit 1
+fi
+echo "✓ Plain-text extract smoke passed"
