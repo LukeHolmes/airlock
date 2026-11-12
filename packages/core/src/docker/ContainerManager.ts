@@ -30,7 +30,7 @@ import {
   MAX_MANAGED_CLEANUP,
 } from './containerLifecycle.js';
 import { ensureIsolatedNetwork } from './network.js';
-import { serializeSeccompProfile } from './seccomp.js';
+import { buildAirlockHostConfig } from './containerHostConfig.js';
 
 // Lazily loaded dockerode to avoid side effects at module load time
 let dockerClient: Dockerode | undefined;
@@ -255,12 +255,6 @@ export function violentGarbageCollect(): void {
   violentGarbageCollectManagedSync(process.pid);
 }
 
-function getSeccompSecurityOpt(): string {
-  // Inline JSON profile — Docker API parses seccomp= values starting with '{' as JSON.
-  // File paths are unreliable through dockerode's API encoding on some hosts.
-  return `seccomp=${serializeSeccompProfile()}`;
-}
-
 async function resolveContainerNetworkMode(
   docker: Dockerode,
   config: AirlockContainerConfig,
@@ -344,41 +338,11 @@ async function waitForVncReady(
   return resolveVncUrls(info);
 }
 
-/**
- * Build the Docker HostConfig with full security hardening.
- */
-function buildHostConfig(
-  config: AirlockContainerConfig,
-  networkMode: string,
-): Dockerode.ContainerCreateOptions['HostConfig'] {
-  const binds: string[] = (config.mounts ?? []).map((m) => {
+function buildBinds(config: AirlockContainerConfig): string[] {
+  return (config.mounts ?? []).map((m) => {
     const roFlag = m.readOnly ? ':ro' : '';
     return `${m.hostPath}:${m.containerPath}${roFlag}`;
   });
-
-  const tmpfs: Record<string, string> = config.tmpfs ?? {
-    '/tmp': 'rw,noexec,nosuid,size=100m',
-    '/var/tmp': 'rw,noexec,nosuid,size=50m',
-  };
-
-  const securityOpt: string[] = ['no-new-privileges', getSeccompSecurityOpt()];
-
-  const hostConfig: Dockerode.ContainerCreateOptions['HostConfig'] = {
-    NetworkMode: networkMode,
-    CapDrop: ['ALL'],
-    SecurityOpt: securityOpt,
-    Binds: binds,
-    Tmpfs: tmpfs,
-    AutoRemove: true,
-  };
-
-  if (config.publishVnc) {
-    hostConfig.PortBindings = {
-      [VNC_CONTAINER_PORT]: [{ HostIp: '127.0.0.1', HostPort: '0' }],
-    };
-  }
-
-  return hostConfig;
 }
 
 /**
@@ -406,7 +370,11 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
   }
 
   const networkMode = await resolveContainerNetworkMode(docker, config);
-  const hostConfig = buildHostConfig(config, networkMode);
+  const hostConfig = buildAirlockHostConfig({
+    networkMode,
+    binds: buildBinds(config),
+    tmpfs: config.tmpfs,
+  });
 
   const createOptions: Dockerode.ContainerCreateOptions = {
     Image: config.image,
@@ -435,6 +403,9 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
 
   if (config.publishVnc) {
     createOptions.ExposedPorts = { [VNC_CONTAINER_PORT]: {} };
+    hostConfig.PortBindings = {
+      [VNC_CONTAINER_PORT]: [{ HostIp: '127.0.0.1', HostPort: '0' }],
+    };
   }
 
   const container = await docker.createContainer(createOptions);

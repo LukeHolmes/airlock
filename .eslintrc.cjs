@@ -51,6 +51,32 @@ module.exports = {
     'prefer-const': 'error',
     'no-var': 'error',
   },
+  overrides: [
+    {
+      files: ['packages/ui/src/renderer/**/*.{ts,tsx}'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            paths: [
+              {
+                name: '@airlock/core',
+                message:
+                  'Renderer must not import the Node @airlock/core entry (dockerode). Use @airlock/core/browser.',
+              },
+            ],
+            patterns: [
+              {
+                group: ['@airlock/core/*', '!@airlock/core/browser'],
+                message:
+                  'Renderer must use @airlock/core/browser only (not /first-run or other subpaths).',
+              },
+            ],
+          },
+        ],
+      },
+    },
+  ],
   ignorePatterns: [
     'dist/',
     'node_modules/',

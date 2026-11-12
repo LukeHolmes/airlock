@@ -60,6 +60,7 @@ export {
 export {
   MAX_DROP_FILE_BYTES,
   validateDrop,
+  isAllowedVncEmbedUrl,
   type DropValidationErrorCode,
   type DropValidationResult,
 } from './validation/index.js';

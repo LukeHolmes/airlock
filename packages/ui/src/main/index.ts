@@ -200,7 +200,7 @@ function createMainWindow(): BrowserWindow {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
       preload: path.join(__dirname, '../../preload/preload/index.js'),
       webSecurity: true,
       allowRunningInsecureContent: false,
@@ -229,8 +229,20 @@ function createMainWindow(): BrowserWindow {
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('file://') || url === 'about:blank') {
+    if (url === 'about:blank') {
       return { action: 'allow' };
+    }
+    try {
+      const parsed = new URL(url);
+      const isLoopback =
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '::1';
+      if (parsed.protocol === 'http:' && isLoopback) {
+        return { action: 'deny' };
+      }
+    } catch {
+      // fall through
     }
     shell.openExternal(url);
     return { action: 'deny' };
