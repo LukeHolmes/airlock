@@ -120,6 +120,40 @@ Capabilities are dropped (`--cap-drop ALL`). A custom seccomp profile is applied
 
 ---
 
+## Security architecture and threat boundaries
+
+Airlock separates **untrusted content** (opened files/URLs) from your **host desktop** using ephemeral Linux containers. Understanding where the boundary sits helps set expectations for regulated and high-risk workflows.
+
+### Where containers actually run
+
+| Host OS | What runs your sandbox |
+|---------|-------------------------|
+| **Linux (native)** | Containers share the **host kernel** with Docker/PodPodman unless you opt into an alternate runtime (see gVisor below). |
+| **macOS / Windows** | Docker Desktop runs Linux containers inside a **Linux VM** (hypervisor + container). That is an additional boundary versus native Linux, but the VM kernel is still shared by all containers in that VM. |
+| **Optional gVisor (`runsc`)** | When `AIRLOCK_RUNTIME=runsc` is set **and** `runsc` is registered with Docker (`docker info` lists it), Airlock passes `--runtime=runsc` for stronger syscall mediation. **Off by default**; requires local gVisor install. |
+
+### Desktop shell (Electron)
+
+- Renderer: **`contextIsolation: true`**, **`nodeIntegration: false`**, **`sandbox: true`**, strict **CSP** (see `packages/ui/src/renderer/index.html`).
+- KasmVNC is embedded via an **iframe** limited to **loopback HTTP** VNC URLs; other origins are rejected in UI and `window.open` is denied except external hand-off via the OS browser.
+- Strips restrictive `X-Frame-Options` / CSP headers **only** for `http://127.0.0.1:*` so the local VNC client can load — not for arbitrary remote sites.
+
+### VNC / WebSocket exposure
+
+Published VNC binds to **`127.0.0.1`** on the host. Other machines cannot reach the stream unless the host firewall or Docker publishing policy is misconfigured. The Electron UI should only embed verified loopback URLs.
+
+### What Airlock does **not** protect against
+
+- **Malware on the host OS** outside Docker (keyloggers, compromised Electron preload if local build is tampered, etc.).
+- **Kernel bugs** on native Linux (without gVisor/Kata); container escape classes apply as with any OCI runtime.
+- **User-enabled network egress** for URL sessions — you explicitly opt in to bridge networking.
+- **Deterministic “safe” verdicts** — static checks (v0.5+) report indicators; **isolation and destroy** remain the primary control.
+- **Signed desktop binaries** — installers are unsigned today (SmartScreen/Gatekeeper friction).
+
+See also [`docs/security-model.md`](docs/security-model.md) for user-facing isolation copy.
+
+---
+
 ## Security Hardening Profile
 
 | Control | Value |
@@ -127,11 +161,14 @@ Capabilities are dropped (`--cap-drop ALL`). A custom seccomp profile is applied
 | Network | Internal bridge (`airlock-isolated`) for file sessions; bridge egress only when opted in |
 | Capabilities | All dropped (`--cap-drop ALL`) |
 | Seccomp | Custom profile (Dangerzone-derived) |
+| Root filesystem | **Read-only** rootfs; bounded **tmpfs** for `/tmp`, caches, and viewer config |
+| Resources | **2 GiB** RAM (swap capped to match), **2 CPUs**, **256 PIDs** (defaults) |
 | AppArmor | Planned — not fully enforced yet |
 | Mount | `:ro` read-only for input files |
 | Privilege | No new privileges (`--security-opt no-new-privileges`) |
 | PID namespace | Host isolated |
 | User | Non-root inside container |
+| Optional runtime | `AIRLOCK_RUNTIME=runsc` when gVisor is registered |
 | Drop validation | Magic-byte MIME sniff; extension spoofing rejected before session start |
 
 ---

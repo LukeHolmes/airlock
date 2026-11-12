@@ -23,6 +23,17 @@ export {
 } from './ContainerManager.js';
 
 export {
+  CONTAINER_MEMORY_BYTES,
+  CONTAINER_NANO_CPUS,
+  CONTAINER_PIDS_LIMIT,
+  DEFAULT_CONTAINER_TMPFS,
+} from './containerDefaults.js';
+
+export { buildAirlockHostConfig } from './containerHostConfig.js';
+
+export { AIRLOCK_CONTAINER_RUNTIME_ENV, resolveOptionalContainerRuntime } from './containerRuntime.js';
+
+export {
   isProcessAlive,
   isReclaimableManagedContainer,
   isManagedAirlockLabels,

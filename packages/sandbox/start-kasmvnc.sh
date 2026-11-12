@@ -17,7 +17,8 @@ log() {
 }
 
 mkdir -p "${HOME}/.vnc"
-touch "${HOME}/.Xauthority"
+touch "${HOME}/.vnc/.Xauthority"
+export XAUTHORITY="${HOME}/.vnc/.Xauthority"
 
 # Clean stale session state from prior supervisord restarts
 vncserver -kill "${DISPLAY}" >/dev/null 2>&1 || true

@@ -4,3 +4,5 @@ export {
   type DropValidationErrorCode,
   type DropValidationResult,
 } from './validateDrop.js';
+
+export { isAllowedVncEmbedUrl } from './vncEmbedUrl.js';
