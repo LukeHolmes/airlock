@@ -86,9 +86,20 @@ print("✓ Triage + X-ray fixture expectations met")
 PY
 
 echo "Preparing one-page PDF for flatten smoke"
-# 1×1 PNG (stdlib base64 only on the host)
-printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d \
-  >"$FIXTURE_DIR/one.png"
+python3 - "$FIXTURE_DIR/one.png" <<'PY'
+import struct, zlib, sys
+path = sys.argv[1]
+w = h = 8
+raw = b"".join(b"\x00" + (b"\xff\xff\xff" * w) for _ in range(h))
+compressed = zlib.compress(raw, 9)
+
+def chunk(tag, data):
+    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
+png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+open(path, "wb").write(png)
+PY
 chmod -R a+rw "$FIXTURE_DIR"
 docker run --rm --user 0:0 --entrypoint img2pdf \
   -v "$FIXTURE_DIR:/work:rw" \
