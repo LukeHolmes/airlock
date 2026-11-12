@@ -1,4 +1,9 @@
-import type { StaticTriageReport, TriageRawOutput, TriageRiskLevel, TriageYaraHit } from './types.js';
+import type {
+  StaticTriageReport,
+  TriageRawOutput,
+  TriageRiskLevel,
+  TriageYaraHit,
+} from './types.js';
 import { TRIAGE_NO_INDICATORS_MESSAGE } from './types.js';
 
 const HIGH_YARA_RULES = new Set([

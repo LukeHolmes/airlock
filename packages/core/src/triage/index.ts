@@ -6,7 +6,11 @@ export {
   type TriageRiskLevel,
 } from './types.js';
 export { buildStaticTriageReport } from './normalize.js';
-export { deriveTriageRiskLevel, deriveTriageStatusMessage, collectIndicators } from './riskRules.js';
+export {
+  deriveTriageRiskLevel,
+  deriveTriageStatusMessage,
+  collectIndicators,
+} from './riskRules.js';
 export {
   initTriageSession,
   getTriageSessionState,

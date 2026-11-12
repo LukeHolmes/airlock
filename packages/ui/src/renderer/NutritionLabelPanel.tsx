@@ -66,9 +66,7 @@ function TriageReportBody({ report }: { report: StaticTriageReport }) {
 
       <TriageMeta report={report} />
 
-      {report.indicators.length > 0 ? (
-        <TriageIndicatorList indicators={report.indicators} />
-      ) : null}
+      {report.indicators.length > 0 ? <TriageIndicatorList indicators={report.indicators} /> : null}
 
       {report.findings.yara.length > 0 ? (
         <div>

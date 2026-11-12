@@ -760,25 +760,25 @@ export default function AirlockApp() {
               className="flex flex-1 min-h-0 w-full flex-row bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
             >
               <div className="flex flex-1 min-w-0 flex-col min-h-0">
-              <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
-                <div className="flex items-center gap-1.5 opacity-50">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#F23D3D]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#FF6A2B]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#3DE8D4]" />
-                </div>
-                <div className="flex-1 flex justify-center">
-                  <div className="bg-[#181C22] rounded-[4px] border border-[#23272F] px-3 py-1 flex items-center gap-2 max-w-sm w-full">
-                    <Terminal size={12} className="text-[#6E7782]" />
-                    <span className="font-mono text-[11px] text-[#AAB3BE] truncate">
-                      {session.sessionId.slice(0, 12)} — {session.containerId.slice(0, 12)}
-                    </span>
+                <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
+                  <div className="flex items-center gap-1.5 opacity-50">
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#F23D3D]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#FF6A2B]" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-[#3DE8D4]" />
+                  </div>
+                  <div className="flex-1 flex justify-center">
+                    <div className="bg-[#181C22] rounded-[4px] border border-[#23272F] px-3 py-1 flex items-center gap-2 max-w-sm w-full">
+                      <Terminal size={12} className="text-[#6E7782]" />
+                      <span className="font-mono text-[11px] text-[#AAB3BE] truncate">
+                        {session.sessionId.slice(0, 12)} — {session.containerId.slice(0, 12)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex-1 relative bg-[#08090B] min-h-0">
-                <VncViewer vncUrl={session.vncUrl} sessionId={session.sessionId} />
-              </div>
+                <div className="flex-1 relative bg-[#08090B] min-h-0">
+                  <VncViewer vncUrl={session.vncUrl} sessionId={session.sessionId} />
+                </div>
               </div>
               {session.metadata.inputType === 'file' ? (
                 <NutritionLabelPanel triageState={triageState} />

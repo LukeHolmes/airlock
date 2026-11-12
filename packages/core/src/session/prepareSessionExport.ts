@@ -25,8 +25,7 @@ export async function prepareSessionExport(
   const containerId = extractContainerIdFromLogs(artefacts.logs);
   const inputFingerprint = await resolveSessionInputFingerprint(artefacts);
   const triageState = getTriageSessionState(sessionId);
-  const staticTriage =
-    triageState?.status === 'complete' ? triageState.report : undefined;
+  const staticTriage = triageState?.status === 'complete' ? triageState.report : undefined;
 
   const document = serializeSessionExport({
     exportedAt,
