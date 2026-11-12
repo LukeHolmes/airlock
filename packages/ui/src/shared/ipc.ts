@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   SESSION_GET_TRIAGE: 'airlock:session:get-triage',
   RECEIPT_VERIFY: 'airlock:receipt:verify',
   RECEIPT_EXPORT_PUBLIC_KEY: 'airlock:receipt:export-public-key',
+  RECEIPT_KEY_STATUS: 'airlock:receipt:key-status',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -113,6 +114,11 @@ export type ReceiptExportPublicKeyResult =
   | { ok: false; canceled: true }
   | { ok: false; canceled: false; error: string };
 
+export type ReceiptKeyStatus = {
+  protectionLevel: 'os-keychain' | 'file-0600';
+  warning: string | null;
+};
+
 export type AirlockReadiness = {
   docker: { available: boolean };
   sandboxImage: { available: boolean; image: string };
@@ -195,6 +201,7 @@ export interface AirlockIpcApi {
   exportSession(sessionId: string): Promise<SessionExportResult>;
   verifyReceipt(): Promise<ReceiptVerifyResult>;
   exportReceiptPublicKey(): Promise<ReceiptExportPublicKeyResult>;
+  getReceiptKeyStatus(): Promise<ReceiptKeyStatus>;
   getSessionTriage(sessionId: string): Promise<SessionTriageSnapshot>;
 
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;

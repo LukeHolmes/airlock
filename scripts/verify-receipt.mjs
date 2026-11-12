@@ -42,7 +42,12 @@ if (result.ok) {
   console.log('OK: signature valid');
   console.log(`Public key fingerprint: ${result.fingerprint}`);
   console.log(`Static risk level: ${result.payload.riskLevel}`);
-  console.log(`Input SHA-256: ${result.payload.input.sha256}`);
+  if (result.payload.inspectionKind === 'url') {
+    console.log(`URL (as entered): ${result.payload.urlInspection?.urlAsEntered ?? ''}`);
+  } else {
+    console.log(`Input SHA-256: ${result.payload.input?.sha256 ?? ''}`);
+  }
+  console.log(`Key protection: ${result.payload.signingKey.protectionLevel}`);
   process.exit(0);
 }
 

@@ -32,14 +32,17 @@ export {
   parseSignedReceiptJson,
 } from './verify.js';
 export {
+  PLAINTEXT_KEY_WARNING,
+  type KeyProtector,
+  type ReceiptKeyProtectionLevel,
+} from './keyProtector.js';
+export { type ReceiptSigningKeyMaterial } from './keyRecord.js';
+export {
   RECEIPT_KEY_FILE_NAME,
   keyFilePath,
   loadOrCreateReceiptKey,
-  readReceiptKeyFile,
-  writeReceiptKeyFile,
   assertPrivateKeyFilePermissions,
   exportPublicKeyDocument,
-  type ReceiptKeyFile,
 } from './keyFileStore.js';
 export { renderInspectionReceiptPdf } from './receiptPdf.js';
 export {

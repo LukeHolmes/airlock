@@ -2,9 +2,39 @@ import { publicKeyFingerprintFromSpki, verifyCanonicalPayload } from './crypto.j
 import { canonicalizeReceiptPayload } from './sign.js';
 import {
   INSPECTION_RECEIPT_FORMAT,
+  type InspectionReceiptPayload,
   type SignedInspectionReceipt,
   type VerifyReceiptResult,
 } from './types.js';
+
+function normalizeLegacyReceiptPayload(
+  payload: InspectionReceiptPayload,
+): InspectionReceiptPayload {
+  const record = payload as InspectionReceiptPayload & {
+    inspectionKind?: 'file' | 'url';
+    signingKey?: { protectionLevel?: 'os-keychain' | 'file-0600' };
+  };
+  if (!record.inspectionKind && record.staticTriage) {
+    return {
+      ...record,
+      inspectionKind: 'file',
+      signingKey: {
+        ...record.signingKey,
+        protectionLevel: record.signingKey?.protectionLevel ?? 'file-0600',
+      },
+    };
+  }
+  if (record.signingKey && !record.signingKey.protectionLevel) {
+    return {
+      ...record,
+      signingKey: {
+        ...record.signingKey,
+        protectionLevel: 'file-0600',
+      },
+    };
+  }
+  return record;
+}
 
 function isSignedReceipt(value: unknown): value is SignedInspectionReceipt {
   if (!value || typeof value !== 'object') {
@@ -30,7 +60,7 @@ export function verifySignedInspectionReceipt(
 
   const publicKey = options?.publicKeySpkiBase64 ?? receipt.signingPublicKey;
   const fingerprint = publicKeyFingerprintFromSpki(publicKey);
-  const payload = receipt.payload;
+  const payload = normalizeLegacyReceiptPayload(receipt.payload);
 
   if (payload.signingKey?.publicKeyFingerprint !== fingerprint) {
     return { ok: false, reason: 'Public key fingerprint does not match signed payload metadata' };

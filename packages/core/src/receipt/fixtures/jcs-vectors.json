@@ -1,0 +1,22 @@
+[
+  {
+    "name": "empty object",
+    "input": {},
+    "expected": "{}"
+  },
+  {
+    "name": "integer",
+    "input": { "val": 3.5 },
+    "expected": "{\"val\":3.5}"
+  },
+  {
+    "name": "big-int sample",
+    "input": { "big": "055", "time": "2019-01-28T07:45:10Z", "val": 3.5 },
+    "expected": "{\"big\":\"055\",\"time\":\"2019-01-28T07:45:10Z\",\"val\":3.5}"
+  },
+  {
+    "name": "unicode escapes",
+    "input": { "iss": "https://tools.ietf.org/html/rfc8785" },
+    "expected": "{\"iss\":\"https://tools.ietf.org/html/rfc8785\"}"
+  }
+]

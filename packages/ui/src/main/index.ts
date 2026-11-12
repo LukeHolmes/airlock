@@ -21,7 +21,6 @@ import {
   analyzeSession,
   getSessionTriage,
   prepareInspectionReceipt,
-  loadOrCreateReceiptKey,
   renderInspectionReceiptPdf,
   verifyReceiptJson,
   exportPublicKeyDocument,
@@ -35,6 +34,7 @@ import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
 import { getReadiness, refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
+import { loadOrCreateElectronReceiptKey } from './receiptKeyStore.js';
 import {
   IPC_CHANNELS,
   type AirlockInput,
@@ -48,6 +48,7 @@ import {
   type SessionExportResult,
   type ReceiptVerifyResult,
   type ReceiptExportPublicKeyResult,
+  type ReceiptKeyStatus,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -424,11 +425,12 @@ function registerIpcHandlers(): void {
     async (event, sessionId: string): Promise<SessionExportResult> => {
       console.log(`[ipc] exportSignedReceipt ${sessionId.slice(0, 12)}`);
       try {
-        const key = loadOrCreateReceiptKey(app.getPath('userData'));
+        const { material: key } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
         const prepared = await prepareInspectionReceipt(sessionId, {
           appVersion: VERSION,
           privateKeyPkcs8: key.privateKeyPkcs8,
           publicKeySpki: key.publicKeySpki,
+          keyProtectionLevel: key.protectionLevel,
         });
         const parent = BrowserWindow.fromWebContents(event.sender);
         const saveOptions = {
@@ -484,7 +486,10 @@ function registerIpcHandlers(): void {
         ok: true,
         fingerprint: result.fingerprint,
         riskLevel: result.payload.riskLevel,
-        fileName: result.payload.input.fileName,
+        fileName:
+          result.payload.input?.fileName ??
+          result.payload.urlInspection?.urlAsEntered ??
+          'inspection',
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -492,11 +497,16 @@ function registerIpcHandlers(): void {
     }
   });
 
+  ipcMain.handle(IPC_CHANNELS.RECEIPT_KEY_STATUS, async (): Promise<ReceiptKeyStatus> => {
+    const { status } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
+    return status;
+  });
+
   ipcMain.handle(
     IPC_CHANNELS.RECEIPT_EXPORT_PUBLIC_KEY,
     async (event): Promise<ReceiptExportPublicKeyResult> => {
       try {
-        const key = loadOrCreateReceiptKey(app.getPath('userData'));
+        const { material: key } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
         const doc = exportPublicKeyDocument(key);
         const parent = BrowserWindow.fromWebContents(event.sender);
         const saveOptions = {

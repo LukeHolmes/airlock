@@ -2,7 +2,6 @@ import { canonicalizeJson } from './jcs.js';
 import { signCanonicalPayload } from './crypto.js';
 import {
   INSPECTION_RECEIPT_FORMAT,
-  INSPECTION_RECEIPT_SCHEMA_VERSION,
   RECEIPT_INTEGRITY_NOTICE,
   type InspectionReceiptPayload,
   type SignedInspectionReceipt,
@@ -21,7 +20,7 @@ export function signInspectionReceipt(
   const signature = signCanonicalPayload(canonical, privateKeyPkcs8Base64);
   return {
     format: INSPECTION_RECEIPT_FORMAT,
-    formatVersion: INSPECTION_RECEIPT_SCHEMA_VERSION,
+    formatVersion: 2 as const,
     integrityNotice: RECEIPT_INTEGRITY_NOTICE,
     payload,
     signature,

@@ -28,7 +28,11 @@ export {
   exportPublicKeyPem,
   exportPublicKeyDocument,
   renderInspectionReceiptPdf,
+  PLAINTEXT_KEY_WARNING,
   loadOrCreateReceiptKey,
+  type KeyProtector,
+  type ReceiptKeyProtectionLevel,
+  type ReceiptSigningKeyMaterial,
   type SignedInspectionReceipt,
   type VerifyReceiptResult,
 } from './receipt/index.js';

@@ -46,14 +46,19 @@ export function renderInspectionReceiptPdf(receipt: SignedInspectionReceipt): Bu
     `Sandbox image: ${p.sandboxImage.ref}`,
     `Image digest: ${p.sandboxImage.digest}`,
     `YARA rules SHA-256: ${p.inspectionToolchain.yaraRulesSha256}`,
-    `Input: ${p.input.fileName} (${p.input.sizeBytes} bytes)`,
-    `Input SHA-256: ${p.input.sha256}`,
+    p.inspectionKind === 'url'
+      ? `URL (as entered): ${p.urlInspection?.urlAsEntered ?? ''}`
+      : `Input: ${p.input?.fileName ?? ''} (${p.input?.sizeBytes ?? 0} bytes)`,
+    p.inspectionKind === 'url'
+      ? `Offline URL X-ray: ${p.urlInspection?.offlineUrlXray.map((u) => u.flags.join('|') || 'none').join('; ') ?? 'none'}`
+      : `Input SHA-256: ${p.input?.sha256 ?? ''}`,
+    p.urlInspection?.noFileStaticTriage ? `Note: ${p.urlInspection.noFileStaticTriage}` : '',
     `Risk level (static): ${p.riskLevel}`,
     `Session: ${p.session.sessionId}`,
     `Started (UTC): ${p.session.startedAt}`,
     `Ended (UTC): ${p.session.endedAt}`,
     `Public key fingerprint: ${p.signingKey.publicKeyFingerprint}`,
-    `Indicators: ${p.staticTriage.indicators.join('; ') || 'none'}`,
+    `Indicators: ${p.staticTriage?.indicators.join('; ') || 'none'}`,
     '',
     p.reserved.note,
     '',

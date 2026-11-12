@@ -13,7 +13,9 @@ import {
 } from 'lucide-react';
 import VncViewer from './VncViewer';
 import NutritionLabelPanel from './NutritionLabelPanel';
-import { RECEIPT_INTEGRITY_NOTICE, type TriageSessionState } from '@airlock/core/browser';
+import type { TriageSessionState } from '@airlock/core/browser';
+import ReceiptToolbar from './ReceiptToolbar';
+import ReceiptExportPanel from './receiptExportPanel';
 import FirstRunProgress from './FirstRunProgress';
 import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
@@ -404,37 +406,6 @@ export default function AirlockApp() {
     }
   }, [analysisResult]);
 
-  const handleVerifyReceipt = useCallback(async () => {
-    if (!ipc) return;
-    setReceiptVerifyMessage(null);
-    try {
-      const result = await ipc.verifyReceipt();
-      if (result.ok) {
-        setReceiptVerifyMessage(
-          `Signature valid for ${result.fileName} (static risk: ${result.riskLevel}). Key ${result.fingerprint.slice(0, 20)}…`,
-        );
-      } else if (!result.canceled) {
-        setError(result.error);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }, []);
-
-  const handleExportReceiptPublicKey = useCallback(async () => {
-    if (!ipc) return;
-    try {
-      const result = await ipc.exportReceiptPublicKey();
-      if (result.ok) {
-        setReceiptVerifyMessage(`Public key exported to ${result.filePath}`);
-      } else if (!result.canceled) {
-        setError(result.error);
-      }
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : String(err));
-    }
-  }, []);
-
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -498,24 +469,15 @@ export default function AirlockApp() {
               </button>
             </div>
           )}
-          {ipc && (
-            <div className="flex items-center gap-2 no-drag">
-              <button
-                type="button"
-                onClick={() => void handleVerifyReceipt()}
-                className="px-2.5 py-1 rounded-[4px] text-[11px] font-mono border border-[#23272F] text-[#AAB3BE] hover:border-[#3DE8D4]/40"
-              >
-                Verify receipt
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleExportReceiptPublicKey()}
-                className="px-2.5 py-1 rounded-[4px] text-[11px] font-mono border border-[#23272F] text-[#AAB3BE] hover:border-[#3DE8D4]/40"
-              >
-                Export public key
-              </button>
+          {ipc ? (
+            <div className="no-drag">
+              <ReceiptToolbar
+                ipc={ipc}
+                onStatusMessage={setReceiptVerifyMessage}
+                onError={setError}
+              />
             </div>
-          )}
+          ) : null}
           {!ipc && (
             <div className="flex items-center gap-2 bg-[#F23D3D]/10 border border-[#F23D3D]/20 px-2.5 py-1 rounded-[4px]">
               <span className="font-mono text-[11px] font-medium tracking-widest text-[#F23D3D] uppercase">
@@ -609,23 +571,13 @@ export default function AirlockApp() {
               {analysisResult.analysis.recommendation}
             </p>
 
-            <p className="text-[11px] text-[#7E8B9A] mb-3 leading-relaxed border border-[#23272F] rounded-[4px] p-2">
-              {RECEIPT_INTEGRITY_NOTICE}
-            </p>
+            <ReceiptExportPanel
+              isExporting={isExporting}
+              exportMessage={exportMessage}
+              onExport={() => void handleExportSession()}
+            />
 
-            {exportMessage && (
-              <p className="text-[12px] text-[#3DE8D4] font-mono mb-3 break-all">{exportMessage}</p>
-            )}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void handleExportSession()}
-                disabled={isExporting}
-                className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium disabled:opacity-50"
-              >
-                {isExporting ? 'Exporting…' : 'Export signed receipt'}
-              </button>
+            <div className="flex flex-wrap gap-2 mt-3">
               <button
                 type="button"
                 onClick={() => {

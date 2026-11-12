@@ -1,11 +1,12 @@
 import { getSessionArtefacts } from '../session/artefacts.js';
 import { getTriageSessionState } from '../triage/triageStore.js';
+import { deriveUrlOnlyRiskLevel, xrayUrlAsEntered } from '../triage/urlXray.js';
 import {
   buildInspectionReceiptPayload,
   defaultInspectionToolchain,
   toolchainFromTriageReport,
-  type BuildInspectionReceiptInput,
 } from './buildPayload.js';
+import type { ReceiptKeyProtectionLevel } from './keyProtector.js';
 import { signInspectionReceipt, formatSignedReceiptJson } from './sign.js';
 import type { InspectionReceiptSandboxImage } from './types.js';
 import type { SignedInspectionReceipt } from './types.js';
@@ -37,6 +38,7 @@ export type PrepareInspectionReceiptOptions = {
   appVersion: string;
   privateKeyPkcs8: string;
   publicKeySpki: string;
+  keyProtectionLevel: ReceiptKeyProtectionLevel;
   exportedAtMs?: number;
 };
 
@@ -44,13 +46,7 @@ export async function prepareInspectionReceipt(
   sessionId: string,
   options: PrepareInspectionReceiptOptions,
 ): Promise<PreparedInspectionReceipt> {
-  const triageState = getTriageSessionState(sessionId);
-  if (triageState?.status !== 'complete') {
-    throw new Error('Static triage must complete before exporting a signed receipt');
-  }
-
   const artefacts = getSessionArtefacts(sessionId);
-  const staticTriage = triageState.report;
   const sandboxImage =
     extractSandboxImageFromLogs(artefacts.logs) ??
     ({
@@ -58,28 +54,51 @@ export async function prepareInspectionReceipt(
       digest: 'unknown',
     } satisfies InspectionReceiptSandboxImage);
 
-  const toolchain = toolchainFromTriageReport(staticTriage) ?? defaultInspectionToolchain();
-
-  const fallbackEnd = options.exportedAtMs ?? Date.parse(staticTriage.completedAt) ?? Date.now();
-  const startedAtMs =
-    artefacts.metadata.startTime > 0
-      ? artefacts.metadata.startTime
-      : Date.parse(staticTriage.completedAt) || fallbackEnd;
+  const fallbackEnd = options.exportedAtMs ?? Date.now();
+  const startedAtMs = artefacts.metadata.startTime > 0 ? artefacts.metadata.startTime : fallbackEnd;
   const endedAtMs = artefacts.metadata.endTime ?? fallbackEnd;
 
-  const input: BuildInspectionReceiptInput = {
-    appVersion: options.appVersion,
-    sandboxImage,
-    inspectionToolchain: toolchain,
-    staticTriage,
-    sessionId,
-    startedAtMs,
-    endedAtMs,
-    signingPublicKeySpki: options.publicKeySpki,
-  };
+  let receipt: SignedInspectionReceipt;
 
-  const payload = buildInspectionReceiptPayload(input);
-  const receipt = signInspectionReceipt(payload, options.privateKeyPkcs8, options.publicKeySpki);
+  if (artefacts.input.type === 'url') {
+    const urlAsEntered = artefacts.input.value;
+    const offlineUrlXray = xrayUrlAsEntered(urlAsEntered);
+    const payload = buildInspectionReceiptPayload({
+      kind: 'url',
+      appVersion: options.appVersion,
+      sandboxImage,
+      urlAsEntered,
+      offlineUrlXray,
+      riskLevel: deriveUrlOnlyRiskLevel(offlineUrlXray),
+      sessionId,
+      startedAtMs,
+      endedAtMs,
+      signingPublicKeySpki: options.publicKeySpki,
+      keyProtectionLevel: options.keyProtectionLevel,
+    });
+    receipt = signInspectionReceipt(payload, options.privateKeyPkcs8, options.publicKeySpki);
+  } else {
+    const triageState = getTriageSessionState(sessionId);
+    if (triageState?.status !== 'complete') {
+      throw new Error('Static triage must complete before exporting a signed file receipt');
+    }
+    const staticTriage = triageState.report;
+    const toolchain = toolchainFromTriageReport(staticTriage) ?? defaultInspectionToolchain();
+    const payload = buildInspectionReceiptPayload({
+      kind: 'file',
+      appVersion: options.appVersion,
+      sandboxImage,
+      inspectionToolchain: toolchain,
+      staticTriage,
+      sessionId,
+      startedAtMs,
+      endedAtMs,
+      signingPublicKeySpki: options.publicKeySpki,
+      keyProtectionLevel: options.keyProtectionLevel,
+    });
+    receipt = signInspectionReceipt(payload, options.privateKeyPkcs8, options.publicKeySpki);
+  }
+
   const shortId = sessionId.replace(/-/g, '').slice(0, 12);
 
   return {
