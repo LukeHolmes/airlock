@@ -1,5 +1,6 @@
 /** Strip format characters and C0/C1 controls (keep TAB, LF, CR). */
-const FORMAT_AND_ZERO_WIDTH = /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD\u180E\u061C\u2066-\u2069]/g;
+const FORMAT_AND_ZERO_WIDTH =
+  /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF\u00AD\u180E\u061C\u2066-\u2069]/g;
 
 /** C0/C1 controls except tab, newline, carriage return. */
 // eslint-disable-next-line no-control-regex -- intentional stripping of control bytes
