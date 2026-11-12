@@ -111,11 +111,10 @@ docker run --rm \
   --user 0:0 \
   --network none \
   --cap-drop ALL \
-  --entrypoint /usr/local/bin/airlock-flatten-pdf \
   -v "$FIXTURE_DIR/one-page.pdf:/input/target.pdf:ro" \
-  -v "$FIXTURE_DIR:/out:rw" \
   "$IMAGE" \
-  /input/target.pdf /out/flattened-one-page.pdf
+  sh -c '/usr/local/bin/airlock-flatten-pdf /input/target.pdf /tmp/flattened-one-page.pdf && cat /tmp/flattened-one-page.pdf' \
+  >"$FIXTURE_DIR/flattened-one-page.pdf"
 
 if grep -qi javascript "$FIXTURE_DIR/flattened-one-page.pdf"; then
   echo "✗ Flattened PDF still contains JavaScript marker string"
