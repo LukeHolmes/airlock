@@ -100,15 +100,25 @@ export {
 
 export {
   scrubPlainText,
+  normalizeExportedPlainText,
   CLIPBOARD_SCRUB_NOTICE,
   FLATTENED_PDF_EXPORT_NOTICE,
+  PLAIN_TEXT_EXPORT_NOTICE,
+  PLAIN_TEXT_EXPORT_MAX_BYTES,
   type ScrubPlainTextResult,
+  type NormalizePlainTextResult,
 } from './export/scrubPlainText.js';
 export {
   flattenPdfInContainer,
   containerTargetPathForHostFile,
   assertFlattenedPdfBytes,
 } from './export/flattenedPdf.js';
+export {
+  extractPlainTextInContainer,
+  isPlainTextExportSupported,
+  EXTRACT_SCRIPT_PATH,
+  type PlainTextExtractResult,
+} from './export/plainTextExport.js';
 export { readGuestPlainClipboard } from './export/guestClipboard.js';
 
 export type {
