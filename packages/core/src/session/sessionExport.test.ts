@@ -47,7 +47,7 @@ const baseAnalysis = {
 test('serializeSessionExport builds a versioned document', () => {
   const document = serializeSessionExport({
     exportedAt: '2026-11-09T12:00:00.000Z',
-    appVersion: '0.4.0',
+    appVersion: '0.4.1',
     sessionId: baseArtefacts.sessionId,
     containerId: 'abc123deadbeef',
     artefacts: baseArtefacts,
@@ -76,7 +76,7 @@ test('serializeSessionExport builds a versioned document', () => {
 test('formatSessionExportJson is stable JSON with trailing newline', () => {
   const document = serializeSessionExport({
     exportedAt: '2026-11-09T12:00:00.000Z',
-    appVersion: '0.4.0',
+    appVersion: '0.4.1',
     sessionId: baseArtefacts.sessionId,
     artefacts: baseArtefacts,
     analysis: baseAnalysis,

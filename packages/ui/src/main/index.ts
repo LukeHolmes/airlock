@@ -48,7 +48,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 
 function parseSessionPort(session: AirlockSession): number | undefined {
   if (!session.vncUrl) {

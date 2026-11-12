@@ -8,7 +8,7 @@ Drop a file in. It opens in an isolated container. The container dies when you'r
 
 Airlock is a hard fork of the OpenClaw monorepo architecture, entirely gutted of its AI/LLM components and rebuilt as a strict, deterministic, security-first local execution bus.
 
-**Current version:** `0.4.0`
+**Current version:** `0.4.1`
 
 ---
 

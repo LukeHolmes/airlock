@@ -1,3 +1,36 @@
+# Airlock v0.4.1
+
+Patch release: ships **#36 managed-container lifecycle cleanup** in desktop installers and corrects the displayed app version.
+
+Installers are **unsigned**. Docker (Desktop or Engine) is required for sessions.
+
+## What's new
+
+- **Owner-PID labels** on Airlock-managed sandboxes (`app.airlock.managed`, `app.airlock.owner_pid`).
+- **Stale-container recovery** on Electron startup — reclaims only demonstrably stale managed containers (dead foreign owner or same process); never touches unrelated Docker workloads.
+- **Shutdown cleanup** on normal quit and crash paths (`shutdownManagedContainers`, owner-scoped violent GC).
+- **Harness destroy race** — post-destroy orphan check retries listing so transient Docker lag does not fail smoke tests.
+- **Version display** — Electron main and package metadata report **0.4.1** (was stuck at 0.3.1/0.4.0 mismatch in some builds).
+
+Container isolation is unchanged: ephemeral containers, default no egress, cap-drop, seccomp, read-only input mounts.
+
+## Sandbox image (GHCR)
+
+When you tag `v0.4.1`, publish-sandbox publishes:
+
+```text
+ghcr.io/lukeholmes/airlock-sandbox:0.4.1
+ghcr.io/lukeholmes/airlock-sandbox:latest
+```
+
+First-run still falls back to bundled build context if the registry is unreachable.
+
+## Install
+
+Same as v0.4.0: Linux AppImage, macOS DMG, Windows NSIS (unsigned). See [v0.4.0 notes](#airlock-v040) below for platform-specific first-launch steps.
+
+---
+
 # Airlock v0.4.0
 
 Portable, disposable sandboxes for opening untrusted files and URLs. This release hardens first-run setup, fixes production UI styling, and documents a clean-machine validation path on Linux.
