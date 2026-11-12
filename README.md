@@ -180,7 +180,7 @@ See also [`docs/security-model.md`](docs/security-model.md) for user-facing isol
 | Desktop Shell | Electron |
 | UI Framework | React + TypeScript + Tailwind |
 | Orchestrator | Node.js + dockerode |
-| Container Runtime | Docker (local daemon) |
+| Container Runtime | Docker-compatible API (Docker, Podman, OrbStack, Colima, Rancher Desktop) |
 | Remote Desktop | KasmVNC |
 | Display Server | Xvfb (headless X11) |
 | Package Manager | pnpm workspaces |
@@ -190,15 +190,26 @@ See also [`docs/security-model.md`](docs/security-model.md) for user-facing isol
 
 ## Prerequisites
 
-- **Docker Desktop** (macOS/Windows) or **Docker Engine** (Linux) — running before you start a session
+- A **Docker-compatible container engine** (Docker Desktop, Podman, OrbStack, Colima, or Rancher Desktop) — running before you start a session. Airlock **refuses** engines that cannot apply its hardened container spec (cap-drop ALL, custom seccomp, read-only root, cgroup limits).
 - **Node.js** >= 20
 - **pnpm** >= 9
 
 ---
 
+## Open in Airlock (OS integration)
+
+Packaged builds register **Open in Airlock** handlers for common document types and the `airlock://` URL scheme.
+
+- **Windows / Linux:** Right-click a supported file → **Open with** → Airlock (exact menu text varies by OS).
+- **macOS:** Open the file with Airlock from Finder’s **Open With** menu, or use `airlock:///path/to/file` / `airlock://open?path=/path/to/file`.
+- **URLs:** `airlock://open?url=https://example.com/report.pdf` (network sessions require enabling network in the app).
+- **Single instance:** Opening a second file or `airlock://` link focuses the running app and queues detonation in the existing window.
+
+---
+
 ## First-Run Setup
 
-Airlock requires **Docker Desktop** (or Docker Engine on Linux). The sandbox image is provisioned automatically when possible:
+Airlock auto-detects a local engine socket (Docker Desktop, `~/.colima`, OrbStack, Rancher Desktop, Podman, or `DOCKER_HOST`). The sandbox image is provisioned automatically when possible:
 
 1. **GHCR pull** — `ghcr.io/lukeholmes/airlock-sandbox:<version>` (after first release tag is published)
 2. **Bundled build fallback** — packaged apps include the sandbox Dockerfile in `resources/sandbox/`

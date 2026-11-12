@@ -63,6 +63,13 @@ export {
 } from './docker/sandboxImage.js';
 
 export {
+  engineRuntimeAllowsSessions,
+  refreshEngineRuntime,
+  clearEngineRuntimeCache,
+  type EngineRuntimeStatus,
+} from './docker/engineRuntime.js';
+
+export {
   deriveFirstRunStages,
   mapProgressPhaseToStageId,
   parseSandboxSetupFailure,
