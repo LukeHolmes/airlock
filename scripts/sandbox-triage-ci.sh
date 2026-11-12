@@ -86,10 +86,13 @@ print("✓ Triage + X-ray fixture expectations met")
 PY
 
 echo "Preparing one-page PDF for flatten smoke"
-docker run --rm --entrypoint convert \
-  -v "$FIXTURE_DIR:/out:rw" \
+# 1×1 PNG (stdlib base64 only on the host)
+printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d \
+  >"$FIXTURE_DIR/one.png"
+docker run --rm --entrypoint img2pdf \
+  -v "$FIXTURE_DIR:/work:rw" \
   "$IMAGE" \
-  -size 200x200 xc:white "$FIXTURE_DIR/one-page.pdf"
+  /work/one.png -o /work/one-page.pdf
 
 echo "Flatten: one-page.pdf (pixel rebuild)"
 docker run --rm \
