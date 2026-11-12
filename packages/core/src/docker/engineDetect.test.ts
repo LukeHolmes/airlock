@@ -24,7 +24,10 @@ describe('engineDetect', () => {
       } as never),
       'rancher-desktop',
     );
-    assert.equal(classifyEngineKind({ ServerVersion: '27.0.0', Name: 'docker' } as never), 'docker');
+    assert.equal(
+      classifyEngineKind({ ServerVersion: '27.0.0', Name: 'docker' } as never),
+      'docker',
+    );
   });
 
   test('listEngineConnectionCandidates deduplicates sockets', () => {
