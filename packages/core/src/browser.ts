@@ -17,3 +17,12 @@ export {
   type FirstRunStageState,
   type SandboxSetupFailure,
 } from './docker/sandboxSetupUi.js';
+
+export {
+  TRIAGE_SCHEMA_VERSION,
+  TRIAGE_NO_INDICATORS_MESSAGE,
+  type StaticTriageReport,
+  type TriageRiskLevel,
+} from './triage/types.js';
+
+export type { TriageSessionState } from './triage/triageStore.js';

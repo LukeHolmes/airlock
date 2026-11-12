@@ -16,6 +16,7 @@ import {
   type SandboxSetupProgress,
   type SessionAnalysisResult,
   type SessionExportResult,
+  type SessionTriageSnapshot,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -35,6 +36,10 @@ async function analyzeSession(sessionId: string): Promise<SessionAnalysisResult>
 
 async function exportSession(sessionId: string): Promise<SessionExportResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_EXPORT, sessionId);
+}
+
+async function getSessionTriage(sessionId: string): Promise<SessionTriageSnapshot> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_GET_TRIAGE, sessionId);
 }
 
 function onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void {
@@ -120,6 +125,7 @@ const airlockApi: AirlockIpcApi = {
   destroySession,
   analyzeSession,
   exportSession,
+  getSessionTriage,
   onSessionStarted,
   onSessionEnded,
   onSessionError,

@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import { createFileContainer, createUrlContainer, destroyContainer } from '../docker/index.js';
 import { validateDrop, type DropValidationResult } from '../validation/validateDrop.js';
+import {
+  awaitContainerTriageReport,
+  clearTriageSession,
+  initTriageSession,
+} from '../triage/index.js';
 import { registerSessionRecord, updateSessionRecord } from './artefacts.js';
 import { debugLog } from './debug.js';
 import { logEvent } from './logger.js';
@@ -151,6 +156,11 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
       networkMode,
     });
 
+    if (input.type === 'file') {
+      initTriageSession(sessionId);
+      void awaitContainerTriageReport(sessionId, container.id);
+    }
+
     debugLog('executeAirlockSession running', {
       sessionId,
       containerId: container.id,
@@ -176,6 +186,7 @@ export async function destroyAirlockSession(session: AirlockSession): Promise<Ai
   });
 
   try {
+    clearTriageSession(session.sessionId);
     await destroyContainer(session.containerId);
     const destroyed: AirlockSession = {
       ...session,

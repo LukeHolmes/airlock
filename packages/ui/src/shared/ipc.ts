@@ -11,6 +11,7 @@ export const IPC_CHANNELS = {
   SESSION_DESTROY: 'airlock:session:destroy',
   SESSION_ANALYZE: 'airlock:session:analyze',
   SESSION_EXPORT: 'airlock:session:export',
+  SESSION_GET_TRIAGE: 'airlock:session:get-triage',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -63,6 +64,20 @@ export type AirlockSession = {
     inputType: 'file' | 'url';
     networkMode: NetworkMode;
   };
+};
+
+export type TriageSessionState =
+  | { status: 'pending' }
+  | { status: 'running'; startedAt: number }
+  | {
+      status: 'complete';
+      report: import('@airlock/core/browser').StaticTriageReport;
+    }
+  | { status: 'failed'; error: string };
+
+export type SessionTriageSnapshot = {
+  sessionId: string;
+  state: TriageSessionState;
 };
 
 export type SessionAnalysisResult = {
@@ -161,6 +176,7 @@ export interface AirlockIpcApi {
   destroySession(session: AirlockSession): Promise<AirlockSession>;
   analyzeSession(sessionId: string): Promise<SessionAnalysisResult>;
   exportSession(sessionId: string): Promise<SessionExportResult>;
+  getSessionTriage(sessionId: string): Promise<SessionTriageSnapshot>;
 
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;
   onSessionEnded(callback: (event: SessionEndedEvent) => void): () => void;

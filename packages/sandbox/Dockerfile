@@ -9,7 +9,8 @@
 #   - KasmVNC 1.4.1 (WebRTC/WebSocket VNC server)
 #   - Xvfb (headless X11 display)
 #   - Openbox (minimal window manager)
-#   - Chromium, Evince (sandboxed applications)
+#   - Chromium, Evince, LibreOffice (sandboxed applications)
+#   - Static triage: ExifTool, YARA (vendored rules), oletools, PDF probe
 #
 # Security (enforced by ContainerManager at runtime):
 #   - NetworkMode: 'none' (air-gapped)
@@ -276,9 +277,38 @@ RUN apk add --no-cache \
     poppler-utils
 
 # ------------------------------------------------------------------------------
+# Stage 4b: Static triage tools + LibreOffice (offline, baked in at build time)
+# ------------------------------------------------------------------------------
+FROM apps AS triage-tools
+
+USER root
+
+RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.21/community" >> /etc/apk/repositories
+
+RUN apk add --no-cache \
+    perl-image-exiftool \
+    yara \
+    python3 \
+    py3-pip \
+    py3-setuptools \
+    jq \
+    libreoffice \
+    libreoffice-writer \
+    libreoffice-calc \
+    libreoffice-impress
+
+RUN pip3 install --no-cache-dir --break-system-packages 'oletools==0.60.2'
+
+COPY triage/yara /usr/local/share/airlock/triage/yara
+COPY triage/airlock-pdf-probe.py /usr/local/bin/airlock-pdf-probe.py
+COPY triage/airlock-office-probe.py /usr/local/bin/airlock-office-probe.py
+COPY triage/airlock-triage /usr/local/bin/airlock-triage
+RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py
+
+# ------------------------------------------------------------------------------
 # Stage 5: Final Assembly
 # ------------------------------------------------------------------------------
-FROM apps AS final
+FROM triage-tools AS final
 
 # Create runtime directories
 RUN mkdir -p \

@@ -43,6 +43,21 @@ launch_file() {
         application/pdf|application/postscript|application/x-pdf)
             exec evince "$file_path"
             ;;
+        application/msword|application/vnd.ms-word*)
+            exec libreoffice --nologo --view "$file_path"
+            ;;
+        application/vnd.ms-excel|application/vnd.openxmlformats-officedocument.spreadsheetml*)
+            exec libreoffice --nologo --view "$file_path"
+            ;;
+        application/vnd.ms-powerpoint|application/vnd.openxmlformats-officedocument.presentationml*)
+            exec libreoffice --nologo --view "$file_path"
+            ;;
+        application/vnd.openxmlformats-officedocument.wordprocessingml*)
+            exec libreoffice --nologo --view "$file_path"
+            ;;
+        application/vnd.oasis.opendocument.*)
+            exec libreoffice --nologo --view "$file_path"
+            ;;
         text/html|application/xhtml+xml)
             exec chromium-browser \
                 --no-sandbox \
