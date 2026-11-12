@@ -310,7 +310,8 @@ COPY triage/airlock-office-probe.py /usr/local/bin/airlock-office-probe.py
 COPY triage/airlock-triage /usr/local/bin/airlock-triage
 COPY triage/airlock-xray-probe.py /usr/local/bin/airlock-xray-probe.py
 COPY triage/airlock-flatten-pdf /usr/local/bin/airlock-flatten-pdf
-RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py /usr/local/bin/airlock-xray-probe.py /usr/local/bin/airlock-flatten-pdf
+COPY triage/airlock-extract-plaintext /usr/local/bin/airlock-extract-plaintext
+RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py /usr/local/bin/airlock-xray-probe.py /usr/local/bin/airlock-flatten-pdf /usr/local/bin/airlock-extract-plaintext
 
 # ------------------------------------------------------------------------------
 # Stage 5: Final Assembly

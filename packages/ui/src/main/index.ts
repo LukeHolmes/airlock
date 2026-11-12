@@ -27,6 +27,8 @@ import {
   getSessionArtefacts,
   flattenPdfInContainer,
   containerTargetPathForHostFile,
+  extractPlainTextInContainer,
+  isPlainTextExportSupported,
   readGuestPlainClipboard,
   scrubPlainText,
   CLIPBOARD_SCRUB_NOTICE,
@@ -53,6 +55,7 @@ import {
   type SessionTriageSnapshot,
   type SessionExportResult,
   type FlattenedPdfExportResult,
+  type PlainTextExportResult,
   type ClipboardPullGuestResult,
   type ClipboardWriteSanitisedResult,
   type ReceiptVerifyResult,
@@ -510,6 +513,56 @@ function registerIpcHandlers(): void {
         }
         await writeFile(filePath, pdf);
         return { ok: true, filePath };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, canceled: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SESSION_PLAIN_TEXT_EXPORT,
+    async (event, activeSession: AirlockSession): Promise<PlainTextExportResult> => {
+      try {
+        const artefacts = getSessionArtefacts(activeSession.sessionId);
+        if (artefacts.input.type !== 'file') {
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Plain-text export is only for file sessions',
+          };
+        }
+        if (!isPlainTextExportSupported(artefacts.input.value)) {
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Plain-text export is not supported for this file type',
+          };
+        }
+        if (activeSession.status !== 'running') {
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Session must be running to export from the sandbox',
+          };
+        }
+        const containerPath = containerTargetPathForHostFile(artefacts.input.value);
+        const extracted = extractPlainTextInContainer(activeSession.containerId, containerPath);
+        const parent = BrowserWindow.fromWebContents(event.sender);
+        const baseName = path.basename(artefacts.input.value, path.extname(artefacts.input.value));
+        const saveOptions = {
+          title: 'Export plain text',
+          defaultPath: `${baseName}.txt`,
+          filters: [{ name: 'Plain text', extensions: ['txt'] as string[] }],
+        };
+        const { canceled, filePath } = parent
+          ? await dialog.showSaveDialog(parent, saveOptions)
+          : await dialog.showSaveDialog(saveOptions);
+        if (canceled || !filePath) {
+          return { ok: false, canceled: true };
+        }
+        await writeFile(filePath, extracted.text, 'utf8');
+        return { ok: true, filePath, truncated: extracted.truncated };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         return { ok: false, canceled: false, error: message };

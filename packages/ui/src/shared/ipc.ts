@@ -12,6 +12,7 @@ export const IPC_CHANNELS = {
   SESSION_ANALYZE: 'airlock:session:analyze',
   SESSION_EXPORT: 'airlock:session:export',
   SESSION_FLATTENED_PDF_EXPORT: 'airlock:session:export-flattened-pdf',
+  SESSION_PLAIN_TEXT_EXPORT: 'airlock:session:export-plain-text',
   SESSION_GET_TRIAGE: 'airlock:session:get-triage',
   CLIPBOARD_PULL_GUEST: 'airlock:clipboard:pull-guest',
   CLIPBOARD_WRITE_SANITISED: 'airlock:clipboard:write-sanitised',
@@ -104,6 +105,11 @@ export type SessionExportResult =
 
 export type FlattenedPdfExportResult =
   | { ok: true; filePath: string }
+  | { ok: false; canceled: true }
+  | { ok: false; canceled: false; error: string };
+
+export type PlainTextExportResult =
+  | { ok: true; filePath: string; truncated: boolean }
   | { ok: false; canceled: true }
   | { ok: false; canceled: false; error: string };
 
@@ -214,6 +220,7 @@ export interface AirlockIpcApi {
   analyzeSession(sessionId: string): Promise<SessionAnalysisResult>;
   exportSession(sessionId: string): Promise<SessionExportResult>;
   exportFlattenedPdf(session: AirlockSession): Promise<FlattenedPdfExportResult>;
+  exportPlainText(session: AirlockSession): Promise<PlainTextExportResult>;
   pullGuestClipboardText(containerId: string): Promise<ClipboardPullGuestResult>;
   writeSanitisedClipboard(text: string): Promise<ClipboardWriteSanitisedResult>;
   verifyReceipt(): Promise<ReceiptVerifyResult>;

@@ -30,4 +30,9 @@ export type { TriageSessionState } from './triage/triageStore.js';
 
 export { RECEIPT_INTEGRITY_NOTICE } from './receipt/types.js';
 
-export { CLIPBOARD_SCRUB_NOTICE, FLATTENED_PDF_EXPORT_NOTICE } from './export/scrubPlainText.js';
+export {
+  CLIPBOARD_SCRUB_NOTICE,
+  FLATTENED_PDF_EXPORT_NOTICE,
+  PLAIN_TEXT_EXPORT_NOTICE,
+} from './export/scrubPlainText.js';
+export { isPlainTextExportSupported } from './export/plainTextExportSupport.js';

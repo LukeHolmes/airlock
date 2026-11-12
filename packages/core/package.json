@@ -28,7 +28,7 @@
     "dev": "echo 'core dev'",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm build && node --test dist/validation/validateDrop.test.js dist/docker/sandboxImage.test.js dist/session/sessionExport.test.js dist/docker/sandboxSetupUi.test.js dist/docker/containerLifecycle.test.js dist/docker/containerHostConfig.test.js dist/docker/seccomp.test.js dist/validation/vncEmbedUrl.test.js dist/triage/riskRules.test.js dist/triage/normalize.test.js dist/triage/xray.test.js dist/triage/urlXray.test.js dist/receipt/jcs.test.js dist/receipt/jcs.vectors.test.js dist/receipt/receipt.test.js dist/receipt/keyRecord.test.js dist/export/scrubPlainText.test.js dist/export/flattenedPdf.test.js"
+    "test": "pnpm build && node --test dist/validation/validateDrop.test.js dist/docker/sandboxImage.test.js dist/session/sessionExport.test.js dist/docker/sandboxSetupUi.test.js dist/docker/containerLifecycle.test.js dist/docker/containerHostConfig.test.js dist/docker/seccomp.test.js dist/validation/vncEmbedUrl.test.js dist/triage/riskRules.test.js dist/triage/normalize.test.js dist/triage/xray.test.js dist/triage/urlXray.test.js dist/receipt/jcs.test.js dist/receipt/jcs.vectors.test.js dist/receipt/receipt.test.js dist/receipt/keyRecord.test.js dist/export/scrubPlainText.test.js dist/export/flattenedPdf.test.js dist/export/plainTextExportSupport.test.js"
   },
   "dependencies": {
     "dockerode": "^4.0.2",
