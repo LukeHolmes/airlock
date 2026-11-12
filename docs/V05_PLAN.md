@@ -93,6 +93,45 @@
 
 ---
 
+### M7 (first v0.6 feature) — Opt-in local AI explainer
+
+| | |
+|---|---|
+| **Scope** | Optional **plain-English summary** of deterministic triage output on the **host** (never inside the sandbox). |
+| **Definition of done** | Settings toggle (default off); pinned GGUF download with SHA-256 verify; summary UI labelled **“AI summary (not validated)”**; signed receipt excludes AI text or marks it non-validated; threat model documents one-time model download. |
+| **Effort** | **L** (~3 weeks, after M1–M3 foundations) |
+
+**Architecture**
+
+- The **AI never runs inside the sandbox container.** The container runs only deterministic tools and emits **structured JSON findings**.
+- The **host** runs inference via **node-llama-cpp** in the **Electron main process** (not the renderer; not Transformers.js / WebGPU).
+- Model: small quantised **GGUF** (~**1.5B**, **Q4_K_M**). Prefer an **Apache-2.0** instruct model such as **Qwen2.5-1.5B-Instruct** — **licences must be verified** before ship.
+
+**Opt-in and supply chain**
+
+- **Off by default.** User enables in settings and triggers a **one-time download** (pinned version + **SHA-256** verification).
+- Model stored under the app **`userData`** directory; runs **fully offline** after download.
+- The **one-time download** is called out in the **threat model** (network use is user-initiated, not session-default).
+
+**Prompt-injection defence**
+
+- The model receives **only structured tool JSON**, never raw document bytes or full extracted text.
+- Strings originating from the file (macro keywords, URLs, etc.) are **length-capped** and passed as **quoted data fields**, not as instructions.
+
+**Risk and compliance (GxP / Part 11 / Annex 11)**
+
+- **Risk level** is decided by **deterministic rules only** — never by the model.
+- The model **translates** findings into plain English for the operator.
+- UI: separate **“AI summary (not validated)”** panel — never conflated with signed findings.
+- **Signed inspection receipt (M3):** contains raw deterministic findings; AI text is **excluded** or stored as explicit **non-validated, unsigned commentary**.
+
+**Hardware**
+
+- **CPU** inference by default; **Metal**, **CUDA**, or **Vulkan** when available via node-llama-cpp backends.
+- Graceful CPU fallback; **no hard GPU requirement**.
+
+---
+
 ## Explicitly deferred
 
 | Item | Reason |
@@ -101,7 +140,6 @@
 | eBPF / strace behaviour recording | Extra capabilities conflict with **cap-drop ALL**; needs separate privileged observer design. |
 | Fake-net sinkhole | Scope creep vs static triage; network default remains off. |
 | Browser extension | Out of desktop trust boundary; different threat model. |
-| Local LLM explainer | Future **opt-in, local-only** stage; not default (data residency). |
 | Watch-folder | Automation risk; manual open preserves intent. |
 | Visual diff | Niche; after M2/M3 foundations. |
 | Team / cloud features | Conflicts with local-first positioning until receipts are proven. |
