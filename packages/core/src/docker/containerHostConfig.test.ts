@@ -10,6 +10,7 @@ import {
 } from './containerDefaults.js';
 import { buildAirlockHostConfig, getAirlockHostConfigSnapshot } from './containerHostConfig.js';
 import { AIRLOCK_CONTAINER_RUNTIME_ENV } from './containerRuntime.js';
+import { AIRLOCK_SECCOMP_PROFILE } from './seccomp.js';
 
 describe('buildAirlockHostConfig', () => {
   afterEach(() => {
@@ -30,7 +31,25 @@ describe('buildAirlockHostConfig', () => {
     assert.equal(hostConfig.PidsLimit, CONTAINER_PIDS_LIMIT);
     const securityOpt = hostConfig.SecurityOpt as string[] | undefined;
     assert.ok(securityOpt?.includes('no-new-privileges'));
-    assert.ok(securityOpt?.some((opt) => opt.startsWith('seccomp=')));
+    const seccompOpt = securityOpt?.find((opt) => opt.startsWith('seccomp='));
+    assert.ok(seccompOpt);
+    const embedded = seccompOpt!.slice('seccomp='.length);
+    const parsed = JSON.parse(embedded) as typeof AIRLOCK_SECCOMP_PROFILE;
+    assert.equal(parsed.syscalls[0]?.errnoRet, 1);
+    assert.ok(parsed.syscalls[0]?.names?.includes('vmsplice'));
+    const flatAllow = new Set<string>();
+    for (const rule of parsed.syscalls) {
+      if (
+        rule.action === 'SCMP_ACT_ALLOW' &&
+        !rule.includes?.caps &&
+        !rule.includes?.arches &&
+        !rule.args?.length
+      ) {
+        for (const name of rule.names ?? []) flatAllow.add(name);
+      }
+    }
+    assert.equal(flatAllow.has('keyctl'), false);
+    assert.equal(flatAllow.has('pivot_root'), false);
     assert.equal(hostConfig.AutoRemove, true);
   });
 

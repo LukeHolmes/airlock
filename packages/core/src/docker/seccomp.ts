@@ -5,11 +5,9 @@
  * https://github.com/moby/moby/blob/v27.4.0/profiles/seccomp/default.json
  * (Apache-2.0, moby/moby).
  *
- * The on-disk `seccomp/airlock.profile.json` was reconciled from that upstream
- * with Airlock-specific deny/allow adjustments for KasmVNC, supervisord,
- * Chromium, Evince, LibreOffice, and offline triage tools (see
- * `seccomp/PROFILE.md`). Effective syscall posture matches the pre-cleanup
- * profile (no CapDrop/seccomp loosening).
+ * On-disk `seccomp/airlock.profile.json` is Moby v27.4.0 default plus Airlock
+ * tightenings only (prepend EPERM denies, append cap EPERM mirrors). See
+ * `seccomp/PROFILE.md`.
  */
 
 import airlockProfile from './seccomp/airlock.profile.json' with { type: 'json' };

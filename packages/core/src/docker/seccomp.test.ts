@@ -12,20 +12,27 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-function syscallSets(profile: typeof AIRLOCK_SECCOMP_PROFILE) {
+function flatUnrestrictedAllow(profile: typeof AIRLOCK_SECCOMP_PROFILE): Set<string> {
   const allowed = new Set<string>();
-  const denied = new Set<string>();
   for (const rule of profile.syscalls) {
-    for (const name of rule.names ?? []) {
-      if (rule.action.includes('ALLOW')) allowed.add(name);
-      if (rule.action.includes('ERRNO')) denied.add(name);
-    }
+    if (rule.action !== 'SCMP_ACT_ALLOW') continue;
+    if (rule.includes?.caps || rule.includes?.arches) continue;
+    if (rule.includes && 'minKernel' in rule.includes) continue;
+    if (rule.args?.length) continue;
+    for (const name of rule.names ?? []) allowed.add(name);
   }
-  return { allowed, denied };
+  return allowed;
+}
+
+function prependDenyNames(profile: typeof AIRLOCK_SECCOMP_PROFILE): string[] {
+  const first = profile.syscalls[0];
+  assert.equal(first?.action, 'SCMP_ACT_ERRNO');
+  assert.equal(first?.errnoRet, 1);
+  return [...(first.names ?? [])];
 }
 
 describe('AIRLOCK_SECCOMP_PROFILE', () => {
-  test('sources Moby upstream, not Dangerzone', () => {
+  test('documents Moby v27.4.0 upstream', () => {
     const sourcePath = join(here, '..', '..', 'src', 'docker', 'seccomp.ts');
     const source = readFileSync(sourcePath, 'utf8');
     assert.match(source, /moby\/moby/);
@@ -33,22 +40,43 @@ describe('AIRLOCK_SECCOMP_PROFILE', () => {
     assert.equal(MOBY_SECCOMP_SOURCE.includes('v27.4.0'), true);
   });
 
-  test('retains hardening deny rule for vmsplice', () => {
-    const { denied } = syscallSets(AIRLOCK_SECCOMP_PROFILE);
-    assert.ok(denied.has('vmsplice'));
-    assert.ok(denied.has('kexec_load'));
+  test('does not grant gVisor-era flat allows beyond Moby', () => {
+    const moby = JSON.parse(
+      readFileSync(join(here, 'seccomp', 'moby-default.v27.4.0.json'), 'utf8'),
+    ) as typeof AIRLOCK_SECCOMP_PROFILE;
+    const mobyFlat = flatUnrestrictedAllow(moby);
+    const airFlat = flatUnrestrictedAllow(AIRLOCK_SECCOMP_PROFILE);
+    const extras = [...airFlat].filter((name) => !mobyFlat.has(name));
+    assert.deepEqual(
+      extras,
+      [],
+      `unexpected flat allows beyond Moby: ${extras.join(', ')}`,
+    );
+    for (const forbidden of ['keyctl', 'pivot_root', 'signal', 'query_module']) {
+      assert.equal(airFlat.has(forbidden), false, `must not allow ${forbidden}`);
+    }
   });
 
-  test('retains ptrace allow for guest compatibility', () => {
-    const { allowed } = syscallSets(AIRLOCK_SECCOMP_PROFILE);
-    assert.ok(allowed.has('ptrace'));
-    assert.ok(allowed.has('execve'));
+  test('prepends Airlock EPERM deny list stricter than Moby baseline', () => {
+    const denied = prependDenyNames(AIRLOCK_SECCOMP_PROFILE);
+    assert.ok(denied.includes('vmsplice'));
+    assert.ok(denied.includes('cachestat'));
+    assert.ok(denied.includes('kexec_load'));
+    const moby = JSON.parse(
+      readFileSync(join(here, 'seccomp', 'moby-default.v27.4.0.json'), 'utf8'),
+    ) as typeof AIRLOCK_SECCOMP_PROFILE;
+    const mobyFlat = flatUnrestrictedAllow(moby);
+    for (const name of ['vmsplice', 'cachestat', 'futex_wake', 'io_pgetevents']) {
+      assert.ok(denied.includes(name));
+      assert.ok(mobyFlat.has(name));
+    }
   });
 
-  test('serialized profile is stable JSON', () => {
+  test('serialized profile stays Moby-shaped defaultAction', () => {
     const json = serializeSeccompProfile();
     const parsed = JSON.parse(json) as typeof AIRLOCK_SECCOMP_PROFILE;
     assert.equal(parsed.defaultAction, 'SCMP_ACT_ERRNO');
-    assert.ok(parsed.syscalls.length >= 30);
+    assert.equal(parsed.defaultErrnoRet, 1);
+    assert.ok(parsed.syscalls.length >= 40);
   });
 });

@@ -1,45 +1,33 @@
 # Airlock seccomp profile
 
-## Upstream
+## Provenance
 
-- **Moby** `profiles/seccomp/default.json` at tag **v27.4.0**
-  (https://github.com/moby/moby/blob/v27.4.0/profiles/seccomp/default.json, Apache-2.0).
-- Vendored copy: `moby-default.v27.4.0.json` (reference only).
+**Moby default, tightened for Airlock.**
 
-## Reconciled profile
+- Upstream: [moby/moby `profiles/seccomp/default.json` @ v27.4.0](https://github.com/moby/moby/blob/v27.4.0/profiles/seccomp/default.json) (Apache-2.0).
+- Reference copy: `moby-default.v27.4.0.json` (unchanged).
+- Effective profile: `airlock.profile.json` = Moby rule order + Airlock tightenings below.
 
-`airlock.profile.json` is the effective Docker seccomp JSON for Airlock sandboxes.
+No supplemental syscall **ALLOW** rules beyond Moby (in particular no `keyctl`, `pivot_root`, `query_module`, `signal`, or legacy-only allows). With **CapDrop ALL**, capability-gated allows in Moby still resolve to **EPERM** via explicit deny rules where Moby would otherwise return **ENOSYS**.
 
-Compared to Moby v27.4.0 default:
+## Airlock tightenings
 
-### Additional explicit denials (prepended rule, `EPERM`)
+### 1. Prepend explicit **EPERM** (`errnoRet` 1)
 
-Syscalls Moby allows in its baseline allow-list but Airlock rejects up front:
+Deny syscalls Moby permits in its baseline allow-list but Airlock sandboxes do not need (viewer + offline triage on Alpine):
 
-- `cachestat`, `futex_requeue`, `futex_wait`, `futex_waitv`, `futex_wake`
-- `io_pgetevents`, `io_pgetevents_time64`
-- `kexec_file_load`, `kexec_load`
-- `map_shadow_stack`, `migrate_pages`, `move_pages`
-- `nfsservctl`, `nice`, legacy `*stat`/`*uname` compat calls
-- `pciconfig_*`, `sgetmask`, `ssetmask`, `swapoff`, `swapon`, `syscall`, `sysfs`
-- `uselib`, `userfaultfd`, `ustat`, `vm86`, `vm86old`, `vmsplice`, `bdflush`
+| Syscall(s) | Rationale |
+|------------|-----------|
+| `vmsplice`, `userfaultfd`, `kexec_*` | Kernel/memory attack surface; not required for userspace viewers. |
+| `cachestat`, `futex_*`, `io_pgetevents*` | Moby allows on newer kernels; unused by KasmVNC/Chromium/Evince/LibreOffice/triage. |
+| `migrate_pages`, `move_pages`, `map_shadow_stack` | NUMA/page migration; not needed. |
+| `swapon` / `swapoff`, `nice`, `nfsservctl`, `pciconfig_*` | Privilege/admin paths irrelevant under non-root cap-drop. |
+| Legacy `old*`, `vm86*`, `uselib`, `ustat`, `bdflush`, `sysfs`, `syscall` | Obsolete or admin interfaces. |
 
-These are not required for viewer/triage workloads and reduce kernel attack surface.
+### 2. Append **EPERM** mirror rules (vs Moby)
 
-### Supplemental allows (vs Moby flat allow rule)
+Moby ends with capability-only **ALLOW** rules without matching denials. Airlock appends **EPERM** rules so missing capabilities fail closed with **EPERM** instead of default **ENOSYS** for: `open_by_handle_at`, admin mount/namespace set, `chroot`, module load, `acct`, ptrace-adjacent syscalls, raw I/O ports, time set, `vhangup`, `bpf`/`perf_event_open` without caps, and restricted `socket` families.
 
-Retained from the prior Airlock profile so container behaviour is unchanged:
+### Sandbox workloads
 
-- `keyctl` — libsecret / Chromium keyring-style IPC in the guest (non-privileged keys).
-- `pivot_root` — not used at runtime with read-only rootfs; kept for parity with prior profile.
-- `ptrace` — guest debugging/tooling compatibility inside the isolated session.
-- `signal` — legacy libc signal syscall used by some Alpine userspace.
-- `timerfd_settime_time64` — 32-bit time64 compat path for timerfd (supervisor/VNC stack).
-
-Capability-gated rules from Moby remain; with **CapDrop ALL** those syscalls still return `EPERM`.
-
-### Sandbox workloads covered
-
-Alpine packages in `packages/sandbox/Dockerfile`: KasmVNC/Xvfb/supervisord, Openbox,
-Chromium, Evince/poppler, LibreOffice, ExifTool, YARA, oletools, zbar, ImageMagick,
-`img2pdf`, triage scripts, `airlock-flatten-pdf`.
+KasmVNC, supervisord, Xvfb, Openbox, Chromium, Evince, LibreOffice, ExifTool, YARA, oletools, zbar, ImageMagick, img2pdf, and `airlock-triage` / xray / flatten scripts (`packages/sandbox/Dockerfile`).
