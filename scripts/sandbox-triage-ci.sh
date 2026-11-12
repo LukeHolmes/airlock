@@ -90,7 +90,7 @@ echo "Preparing one-page PDF for flatten smoke"
 printf '%s' 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d \
   >"$FIXTURE_DIR/one.png"
 chmod -R a+rw "$FIXTURE_DIR"
-docker run --rm --entrypoint img2pdf \
+docker run --rm --user 0:0 --entrypoint img2pdf \
   -v "$FIXTURE_DIR:/work:rw" \
   "$IMAGE" \
   /work/one.png -o /work/one-page.pdf
