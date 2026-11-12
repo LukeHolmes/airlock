@@ -47,11 +47,7 @@ describe('AIRLOCK_SECCOMP_PROFILE', () => {
     const mobyFlat = flatUnrestrictedAllow(moby);
     const airFlat = flatUnrestrictedAllow(AIRLOCK_SECCOMP_PROFILE);
     const extras = [...airFlat].filter((name) => !mobyFlat.has(name));
-    assert.deepEqual(
-      extras,
-      [],
-      `unexpected flat allows beyond Moby: ${extras.join(', ')}`,
-    );
+    assert.deepEqual(extras, [], `unexpected flat allows beyond Moby: ${extras.join(', ')}`);
     for (const forbidden of ['keyctl', 'pivot_root', 'signal', 'query_module']) {
       assert.equal(airFlat.has(forbidden), false, `must not allow ${forbidden}`);
     }
