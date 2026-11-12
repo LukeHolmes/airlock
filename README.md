@@ -299,6 +299,49 @@ Airlock's design draws from four open-source reference implementations:
 
 ---
 
+## Code signing policy
+
+Free code signing **applied for / pending** via [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/). Windows installers from CI are **unsigned until SignPath approves the project** and the release workflow signing job is enabled. See [docs/SIGNING.md](docs/SIGNING.md) for the planned GitHub Actions flow.
+
+**Team roles (SignPath)**
+
+| Role | Name |
+|------|------|
+| Committers and reviewers | Luke Holmes ([@LukeHolmes](https://github.com/LukeHolmes)) |
+| Approvers | Luke Holmes |
+
+**Privacy**
+
+This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
+
+User-initiated network use includes: optional **GHCR pull** of `ghcr.io/lukeholmes/airlock-sandbox` on first run (when the bundled image build is not used), optional **URL sessions** when network is enabled in the UI, and opening help/download links in the system browser. Container sessions use the local **Docker-compatible runtime** socket only; sandbox workloads default to **no container network**.
+
+---
+
+## Uninstalling Airlock
+
+### Windows
+
+- **Settings → Apps → Installed apps** → Airlock → **Uninstall**, or
+- Run **Uninstall Airlock** from the Start Menu entry created by the NSIS installer, or
+- **Settings → Apps → Airlock → Uninstall** after an in-place upgrade.
+
+The per-user “Open in Airlock” Explorer menu (when installed) is removed with the application; no separate registry cleanup is required.
+
+### macOS
+
+- Quit Airlock, then move **Airlock.app** from **Applications** to the Trash and empty Trash.
+
+Docker sandbox images and containers created by Airlock are not removed automatically; delete stopped Airlock containers in Docker Desktop or run `docker rm` on `app.airlock.managed=true` containers if you no longer need them.
+
+### Linux
+
+- **AppImage:** delete the `Airlock-*.AppImage` file. No system installer registers packages.
+- Optional: remove `~/.config/airlock` (or the XDG config path used by Electron) for app data.
+- Remove sandbox images with `docker rmi airlock/sandbox:latest` (and GHCR tags if pulled) when you no longer need them.
+
+---
+
 ## Licence
 
 Apache-2.0 (see [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)).

@@ -50,6 +50,30 @@ jobs:
             dist/*.exe
           if-no-files-found: ignore
 
+  # SignPath Windows signing — disabled until SignPath Foundation approval (see docs/SIGNING.md).
+  # Enable: set `if` below to `success()` for windows build output, add secrets in repo settings,
+  # and install the SignPath GitHub integration.
+  signpath-windows:
+    name: SignPath (Windows NSIS) [disabled]
+    needs: build
+  # Dummy tree so YAML stays valid when the job is off
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: installers-windows-latest
+          path: unsigned
+      # - uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+      #     project-slug: airlock
+      #     artifact-path: unsigned/*.exe
+      #     wait-for-completion: true
+      - run: echo "SignPath signing not enabled — see docs/SIGNING.md"
+
   release:
     name: GitHub Release
     needs: build

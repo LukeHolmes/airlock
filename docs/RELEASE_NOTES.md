@@ -2,7 +2,7 @@
 
 Patch release: ships **#36 managed-container lifecycle cleanup** in desktop installers and corrects the displayed app version.
 
-Installers are **unsigned**. Docker (Desktop or Engine) is required for sessions.
+Installers are **unsigned**. Docker (Desktop or Engine) is required for sessions. See the repository [Code signing policy](../README.md#code-signing-policy) and [docs/SIGNING.md](SIGNING.md) for the SignPath signing plan (applied for / pending).
 
 ## What's new
 

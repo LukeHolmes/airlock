@@ -79,7 +79,9 @@
     },
     "win": {
       "target": "nsis",
-      "icon": "packages/ui/build/icons/icon.ico"
+      "icon": "packages/ui/build/icons/icon.ico",
+      "legalTrademarks": "Airlock",
+      "executableName": "airlock"
     },
     "linux": {
       "target": "AppImage",
