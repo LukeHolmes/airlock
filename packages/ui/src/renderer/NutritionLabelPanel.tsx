@@ -1,7 +1,11 @@
 import React from 'react';
 import { ListTree, Loader2 } from 'lucide-react';
 
-import type { StaticTriageReport, TriageSessionState } from '@airlock/core/browser';
+import type {
+  StaticTriageReport,
+  TriageSessionState,
+  TriageXrayFinding,
+} from '@airlock/core/browser';
 
 type NutritionLabelPanelProps = {
   triageState: TriageSessionState;
@@ -68,6 +72,8 @@ function TriageReportBody({ report }: { report: StaticTriageReport }) {
 
       {report.indicators.length > 0 ? <TriageIndicatorList indicators={report.indicators} /> : null}
 
+      {report.findings.xray ? <TriageXraySection xray={report.findings.xray} /> : null}
+
       {report.findings.yara.length > 0 ? (
         <div>
           <h4 className="font-mono text-[10px] uppercase text-[#6E7782] mb-1">YARA</h4>
@@ -105,6 +111,74 @@ function TriageMeta({ report }: { report: StaticTriageReport }) {
         </dd>
       </div>
     </dl>
+  );
+}
+
+function TriageXraySection({ xray }: { xray: TriageXrayFinding }) {
+  const hasData =
+    xray.hiddenText.length > 0 ||
+    xray.invisibleUnicode.length > 0 ||
+    xray.qrCodes.length > 0 ||
+    xray.urls.length > 0;
+  if (!hasData) {
+    return null;
+  }
+  return (
+    <div className="border border-[#23272F] rounded-[6px] p-2 space-y-2 bg-[#12151A]/80">
+      <h4 className="font-mono text-[10px] uppercase tracking-wider text-[#3DE8D4]">
+        Content X-ray (offline)
+      </h4>
+      {xray.hiddenText.length > 0 ? (
+        <ul className="text-[#AAB3BE] list-disc list-inside space-y-0.5">
+          {xray.hiddenText.slice(0, 8).map((h) => (
+            <li key={`${h.kind}-${h.detail}`}>
+              <span className="font-mono text-[#7E8B9A]">{h.kind}: </span>
+              {h.detail.slice(0, 100)}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {xray.qrCodes.length > 0 ? <XrayQrList codes={xray.qrCodes} /> : null}
+      {xray.urls.length > 0 ? <XrayUrlList urls={xray.urls} /> : null}
+    </div>
+  );
+}
+
+function XrayQrList({ codes }: { codes: TriageXrayFinding['qrCodes'] }) {
+  return (
+    <XraySubsection title="QR (decoded, not fetched)">
+      <ul className="font-mono text-[11px] text-[#AAB3BE] space-y-1 break-all">
+        {codes.map((qr) => (
+          <li key={`${qr.source}-${qr.payload}`}>{qr.payload.slice(0, 120)}</li>
+        ))}
+      </ul>
+    </XraySubsection>
+  );
+}
+
+function XrayUrlList({ urls }: { urls: TriageXrayFinding['urls'] }) {
+  return (
+    <XraySubsection title="URLs (not resolved)">
+      <ul className="space-y-1">
+        {urls.slice(0, 10).map((u) => (
+          <li key={u.url} className="font-mono text-[11px] break-all text-[#AAB3BE]">
+            {u.url.slice(0, 100)}
+            {u.flags.length > 0 ? (
+              <span className="text-[#FF6A2B]"> [{u.flags.join(', ')}]</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </XraySubsection>
+  );
+}
+
+function XraySubsection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <h5 className="font-mono text-[9px] uppercase text-[#6E7782] mb-0.5">{title}</h5>
+      {children}
+    </div>
   );
 }
 

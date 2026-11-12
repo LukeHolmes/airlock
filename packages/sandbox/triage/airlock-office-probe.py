@@ -25,6 +25,8 @@ def probe(path: str) -> dict:
         for ind in indicators:
             if ind.value and ind.name:
                 result["ole_flags"].append(ind.name)
+                if "macro" in ind.name.lower():
+                    result["macros"] = True
     except Exception as exc:
         result["ole_flags"].append(f"oleid_error:{exc}")
 
@@ -43,6 +45,15 @@ def probe(path: str) -> dict:
                     result["vba_hits"].append(str(entry[0])[:120])
     except Exception as exc:
         result["ole_flags"].append(f"olevba_error:{exc}")
+
+    if not result["auto_exec"]:
+        try:
+            blob = open(path, "rb").read(8_000_000)
+        except OSError:
+            blob = b""
+        for keyword in ("AutoOpen", "Auto_Open", "Document_Open", "AutoExec"):
+            if keyword.encode("ascii") in blob and keyword not in result["auto_exec"]:
+                result["auto_exec"].append(keyword)
 
     return result
 

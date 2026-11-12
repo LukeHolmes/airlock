@@ -9,6 +9,18 @@ Offline tools baked into `airlock/sandbox` at **build time** (no runtime network
 | `airlock-office-probe.py` | oletools (`oleid`, `olevba`) for macros |
 | YARA | Vendored `yara/airlock_rules.yar` (~30 rules, Airlock-authored) |
 | `airlock-triage` | Orchestrator; writes `/tmp/airlock-triage.json` |
+| `airlock-xray-probe.py` | Hidden text, QR (`zbar` + `imagemagick` for PNG decode), URL heuristics (no fetch) |
+
+Schema **v2** adds optional `xray` while keeping v1 fields.
+
+### X-ray false-positive notes
+
+| Detector | Known benign noise |
+|----------|---------------------|
+| White-on-white | PDF producers using white fill for layout |
+| Tiny font | Legal footnotes / watermarks |
+| Punycode | Legitimate IDN domains (`xn--`) |
+| URL shorteners | Marketing PDFs with `bit.ly` tracking links |
 
 Host-side `@airlock/core` normalises raw JSON, derives deterministic risk level, and serves the nutrition-label panel.
 

@@ -76,8 +76,16 @@ case "$detected_mime" in
     ;;
 esac
 
+xray_path="$WORKDIR/xray.json"
+progress "xray"
+if [ -f /usr/local/bin/airlock-xray-probe.py ]; then
+  python3 /usr/local/bin/airlock-xray-probe.py "$TARGET" >"$xray_path" 2>/dev/null || echo 'null' >"$xray_path"
+else
+  echo 'null' >"$xray_path"
+fi
+
 export TARGET file_name file_size sha256 detected_mime declared_ext
-export exif_path yara_path pdf_path office_path REPORT
+export exif_path yara_path pdf_path office_path xray_path REPORT
 python3 <<'PY'
 import json
 import os
@@ -90,7 +98,7 @@ def load(path):
     return json.loads(raw)
 
 out = {
-    "version": 1,
+    "version": 2,
     "filePath": os.environ["TARGET"],
     "fileName": os.environ["file_name"],
     "sizeBytes": int(os.environ["file_size"]),
@@ -107,6 +115,9 @@ if pdf:
 office = load(os.environ["office_path"])
 if office:
     out["office"] = office
+xray = load(os.environ["xray_path"])
+if xray:
+    out["xray"] = xray
 with open(os.environ["REPORT"], "w", encoding="utf-8") as fh:
     json.dump(out, fh, separators=(",", ":"))
 PY

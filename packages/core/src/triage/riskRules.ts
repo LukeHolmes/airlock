@@ -46,11 +46,44 @@ function yaraSeverity(hit: TriageYaraHit): 'high' | 'medium' | 'low' | 'info' {
  * Deterministic risk level from structured findings (never from an LLM).
  * Documented precedence: high → medium → low → none.
  */
+function xraySeverity(
+  xray?: StaticTriageReport['findings']['xray'],
+): 'high' | 'medium' | 'low' | 'none' {
+  if (!xray) {
+    return 'none';
+  }
+  const urlFlags = xray.urls.flatMap((u) => u.flags);
+  if (urlFlags.includes('href_display_mismatch')) {
+    return 'high';
+  }
+  if (urlFlags.some((f) => ['punycode', 'homoglyph', 'ip_literal', 'url_shortener'].includes(f))) {
+    return 'medium';
+  }
+  if (xray.qrCodes.length > 0 && xray.urls.some((u) => u.flags.length > 0)) {
+    return 'medium';
+  }
+  if (
+    xray.hiddenText.some((h) =>
+      ['white_on_white', 'vanish', 'off_page', 'tiny_font'].includes(h.kind),
+    )
+  ) {
+    return 'medium';
+  }
+  if (xray.invisibleUnicode.length > 0) {
+    return 'medium';
+  }
+  if (xray.hiddenText.length > 0 || xray.qrCodes.length > 0) {
+    return 'low';
+  }
+  return 'none';
+}
+
 export function deriveTriageRiskLevel(input: {
   magicMatchesExtension: boolean;
   yara: TriageYaraHit[];
   pdf?: StaticTriageReport['findings']['pdf'];
   office?: StaticTriageReport['findings']['office'];
+  xray?: StaticTriageReport['findings']['xray'];
   indicators: string[];
 }): TriageRiskLevel {
   const yaraHigh = input.yara.some((h) => yaraSeverity(h) === 'high');
@@ -75,7 +108,12 @@ export function deriveTriageRiskLevel(input: {
     return 'high';
   }
 
-  if (yaraMedium || input.pdf?.javascript || input.pdf?.launch) {
+  const xrayLevel = xraySeverity(input.xray);
+  if (xrayLevel === 'high') {
+    return 'high';
+  }
+
+  if (yaraMedium || input.pdf?.javascript || input.pdf?.launch || xrayLevel === 'medium') {
     return 'medium';
   }
 
@@ -83,7 +121,7 @@ export function deriveTriageRiskLevel(input: {
     return 'medium';
   }
 
-  if (input.indicators.length > 0 || input.yara.length > 0) {
+  if (input.indicators.length > 0 || input.yara.length > 0 || xrayLevel === 'low') {
     return 'low';
   }
 
@@ -160,6 +198,21 @@ export function collectIndicators(raw: TriageRawOutput): string[] {
   }
   for (const kw of raw.office?.auto_exec ?? []) {
     indicators.push(`Macro auto-exec keyword: ${kw}`);
+  }
+
+  for (const item of raw.xray?.hidden_text ?? []) {
+    indicators.push(`Hidden content (${item.kind}): ${item.detail.slice(0, 120)}`);
+  }
+  for (const u of raw.xray?.invisible_unicode ?? []) {
+    indicators.push(`Invisible Unicode: ${u.codepoint} (×${u.count})`);
+  }
+  for (const qr of raw.xray?.qr_codes ?? []) {
+    indicators.push(`QR decoded: ${qr.payload.slice(0, 80)}`);
+  }
+  for (const url of raw.xray?.urls ?? []) {
+    if (url.flags.length > 0) {
+      indicators.push(`URL ${url.url.slice(0, 80)} [${url.flags.join(', ')}]`);
+    }
   }
 
   return indicators;

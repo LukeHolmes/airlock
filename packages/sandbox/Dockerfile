@@ -288,6 +288,8 @@ RUN echo "https://dl-cdn.alpinelinux.org/alpine/v3.21/community" >> /etc/apk/rep
 RUN apk add --no-cache \
     perl-image-exiftool \
     yara \
+    zbar \
+    imagemagick \
     python3 \
     py3-pip \
     py3-setuptools \
@@ -303,7 +305,8 @@ COPY triage/yara /usr/local/share/airlock/triage/yara
 COPY triage/airlock-pdf-probe.py /usr/local/bin/airlock-pdf-probe.py
 COPY triage/airlock-office-probe.py /usr/local/bin/airlock-office-probe.py
 COPY triage/airlock-triage /usr/local/bin/airlock-triage
-RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py
+COPY triage/airlock-xray-probe.py /usr/local/bin/airlock-xray-probe.py
+RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py /usr/local/bin/airlock-xray-probe.py
 
 # ------------------------------------------------------------------------------
 # Stage 5: Final Assembly

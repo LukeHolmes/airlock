@@ -28,6 +28,31 @@ function exifHighlights(exiftool: unknown): { count: number; highlights: string[
   return { count: keys.length, highlights };
 }
 
+function mapXray(raw: TriageRawOutput): StaticTriageReport['findings']['xray'] | undefined {
+  const x = raw.xray;
+  if (!x) {
+    return undefined;
+  }
+  const hasData =
+    (x.hidden_text?.length ?? 0) > 0 ||
+    (x.invisible_unicode?.length ?? 0) > 0 ||
+    (x.qr_codes?.length ?? 0) > 0 ||
+    (x.urls?.length ?? 0) > 0;
+  if (!hasData) {
+    return undefined;
+  }
+  return {
+    hiddenText: x.hidden_text ?? [],
+    invisibleUnicode: x.invisible_unicode ?? [],
+    qrCodes: (x.qr_codes ?? []).map((q) => ({ payload: q.payload, source: q.source })),
+    urls: (x.urls ?? []).map((u) => ({
+      url: u.url,
+      flags: u.flags,
+      ...(u.display_text ? { displayText: u.display_text } : {}),
+    })),
+  };
+}
+
 function mapYara(raw: TriageRawOutput): TriageYaraHit[] {
   return (raw.yara ?? []).map((hit) => ({
     rule: hit.rule,
@@ -79,11 +104,14 @@ export function buildStaticTriageReport(
         }
       : undefined;
 
+  const xray = mapXray(raw);
+
   const riskLevel = deriveTriageRiskLevel({
     magicMatchesExtension,
     yara,
     pdf,
     office,
+    xray,
     indicators,
   });
 
@@ -107,6 +135,7 @@ export function buildStaticTriageReport(
       pdf,
       office,
       yara,
+      xray,
     },
     indicators,
     riskLevel,

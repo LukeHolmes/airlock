@@ -1,5 +1,5 @@
-/** Static nutrition-label triage — document schema v1. */
-export const TRIAGE_SCHEMA_VERSION = 1;
+/** Static nutrition-label triage — schema v2 adds optional X-ray findings (v1 fields unchanged). */
+export const TRIAGE_SCHEMA_VERSION = 2;
 
 export type TriageRiskLevel = 'none' | 'low' | 'medium' | 'high';
 
@@ -29,8 +29,36 @@ export type TriageOfficeFinding = {
   vbaHits: string[];
 };
 
+export type TriageHiddenTextFinding = {
+  kind: string;
+  detail: string;
+};
+
+export type TriageInvisibleUnicodeFinding = {
+  codepoint: string;
+  count: number;
+};
+
+export type TriageQrFinding = {
+  payload: string;
+  source: string;
+};
+
+export type TriageUrlFinding = {
+  url: string;
+  flags: string[];
+  displayText?: string;
+};
+
+export type TriageXrayFinding = {
+  hiddenText: TriageHiddenTextFinding[];
+  invisibleUnicode: TriageInvisibleUnicodeFinding[];
+  qrCodes: TriageQrFinding[];
+  urls: TriageUrlFinding[];
+};
+
 export type StaticTriageReport = {
-  schemaVersion: 1;
+  schemaVersion: typeof TRIAGE_SCHEMA_VERSION;
   completedAt: string;
   durationMs: number;
   input: {
@@ -47,6 +75,7 @@ export type StaticTriageReport = {
     pdf?: TriagePdfFinding;
     office?: TriageOfficeFinding;
     yara: TriageYaraHit[];
+    xray?: TriageXrayFinding;
   };
   indicators: string[];
   riskLevel: TriageRiskLevel;
@@ -84,4 +113,10 @@ export type TriageRawOutput = {
     vba_hits?: string[];
   };
   errors?: string[];
+  xray?: {
+    hidden_text?: Array<{ kind: string; detail: string }>;
+    invisible_unicode?: Array<{ codepoint: string; count: number }>;
+    qr_codes?: Array<{ payload: string; source: string }>;
+    urls?: Array<{ url: string; flags: string[]; display_text?: string }>;
+  };
 };
