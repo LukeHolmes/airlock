@@ -8,7 +8,7 @@
  * - Protocol/URL handling
  */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
@@ -24,6 +24,12 @@ import {
   renderInspectionReceiptPdf,
   verifyReceiptJson,
   exportPublicKeyDocument,
+  getSessionArtefacts,
+  flattenPdfInContainer,
+  containerTargetPathForHostFile,
+  readGuestPlainClipboard,
+  scrubPlainText,
+  CLIPBOARD_SCRUB_NOTICE,
   validateDrop,
   configureSandboxImage,
   ensureSandboxImageReady,
@@ -46,6 +52,9 @@ import {
   type SessionAnalysisResult,
   type SessionTriageSnapshot,
   type SessionExportResult,
+  type FlattenedPdfExportResult,
+  type ClipboardPullGuestResult,
+  type ClipboardWriteSanitisedResult,
   type ReceiptVerifyResult,
   type ReceiptExportPublicKeyResult,
   type ReceiptKeyStatus,
@@ -454,6 +463,77 @@ function registerIpcHandlers(): void {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`[ipc] exportSignedReceipt failed: ${message}`);
         return { ok: false, canceled: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SESSION_FLATTENED_PDF_EXPORT,
+    async (event, activeSession: AirlockSession): Promise<FlattenedPdfExportResult> => {
+      try {
+        const artefacts = getSessionArtefacts(activeSession.sessionId);
+        if (artefacts.input.type !== 'file') {
+          return { ok: false, canceled: false, error: 'Flattened PDF export is only for file sessions' };
+        }
+        if (!artefacts.input.value.toLowerCase().endsWith('.pdf')) {
+          return { ok: false, canceled: false, error: 'Flattened export requires a PDF input file' };
+        }
+        if (activeSession.status !== 'running') {
+          return { ok: false, canceled: false, error: 'Session must be running to export from the sandbox' };
+        }
+        const containerPath = containerTargetPathForHostFile(artefacts.input.value);
+        const pdf = flattenPdfInContainer(activeSession.containerId, containerPath);
+        const parent = BrowserWindow.fromWebContents(event.sender);
+        const baseName = path.basename(artefacts.input.value, path.extname(artefacts.input.value));
+        const saveOptions = {
+          title: 'Export flattened PDF',
+          defaultPath: `${baseName}.flattened.pdf`,
+          filters: [{ name: 'Flattened PDF', extensions: ['pdf'] as string[] }],
+        };
+        const { canceled, filePath } = parent
+          ? await dialog.showSaveDialog(parent, saveOptions)
+          : await dialog.showSaveDialog(saveOptions);
+        if (canceled || !filePath) {
+          return { ok: false, canceled: true };
+        }
+        await writeFile(filePath, pdf);
+        return { ok: true, filePath };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, canceled: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.CLIPBOARD_PULL_GUEST,
+    async (_event, containerId: string): Promise<ClipboardPullGuestResult> => {
+      try {
+        const raw = readGuestPlainClipboard(containerId);
+        const scrubbed = scrubPlainText(raw);
+        return {
+          ok: true,
+          rawLength: raw.length,
+          scrubbed: scrubbed.text,
+          notice: CLIPBOARD_SCRUB_NOTICE,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.CLIPBOARD_WRITE_SANITISED,
+    async (_event, text: string): Promise<ClipboardWriteSanitisedResult> => {
+      try {
+        const scrubbed = scrubPlainText(text);
+        clipboard.writeText(scrubbed.text);
+        return { ok: true, notice: CLIPBOARD_SCRUB_NOTICE };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, error: message };
       }
     },
   );

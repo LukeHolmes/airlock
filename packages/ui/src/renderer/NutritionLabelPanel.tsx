@@ -9,6 +9,7 @@ import type {
 
 type NutritionLabelPanelProps = {
   triageState: TriageSessionState;
+  footer?: React.ReactNode;
 };
 
 function riskBadgeClass(level: StaticTriageReport['riskLevel'] | undefined): string {
@@ -24,7 +25,7 @@ function riskBadgeClass(level: StaticTriageReport['riskLevel'] | undefined): str
   }
 }
 
-export default function NutritionLabelPanel({ triageState }: NutritionLabelPanelProps) {
+export default function NutritionLabelPanel({ triageState, footer }: NutritionLabelPanelProps) {
   const report = triageState.status === 'complete' ? triageState.report : undefined;
 
   return (
@@ -52,6 +53,7 @@ export default function NutritionLabelPanel({ triageState }: NutritionLabelPanel
 
         {report ? <TriageReportBody report={report} /> : null}
       </div>
+      {footer}
     </aside>
   );
 }

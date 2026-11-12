@@ -16,6 +16,8 @@ import NutritionLabelPanel from './NutritionLabelPanel';
 import type { TriageSessionState } from '@airlock/core/browser';
 import ReceiptToolbar from './ReceiptToolbar';
 import ReceiptExportPanel from './receiptExportPanel';
+import ClipboardSanitiseDrawer from './ClipboardSanitiseDrawer';
+import FlattenedPdfExportPanel from './FlattenedPdfExportPanel';
 import FirstRunProgress from './FirstRunProgress';
 import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
@@ -61,6 +63,8 @@ export default function AirlockApp() {
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
   const [triageState, setTriageState] = useState<TriageSessionState>({ status: 'pending' });
+  const [activeFilePath, setActiveFilePath] = useState<string | null>(null);
+  const [m4Status, setM4Status] = useState<string | null>(null);
 
   const handleReadinessRefresh = useCallback(async () => {
     if (!ipc) return;
@@ -165,6 +169,8 @@ export default function AirlockApp() {
 
       sessionStartInFlight.current = true;
       const cleanup = startIgnitionLogs(input.type);
+      setActiveFilePath(input.type === 'file' ? input.filePath : null);
+      setM4Status(null);
 
       setSession({
         sessionId: 'pending',
@@ -190,6 +196,7 @@ export default function AirlockApp() {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         setSession(null);
+        setActiveFilePath(null);
         setLogs((prev) => [...prev, `[err] ${message}`]);
       } finally {
         cleanup();
@@ -659,7 +666,7 @@ export default function AirlockApp() {
                     } disabled:opacity-50 disabled:pointer-events-none`}
                   >
                     <WifiOff size={13} />
-                    OFF — Air-Gapped (Safe)
+                    OFF — Air-gapped
                   </button>
                   <button
                     type="button"
@@ -672,7 +679,7 @@ export default function AirlockApp() {
                     } disabled:opacity-50 disabled:pointer-events-none`}
                   >
                     <Wifi size={13} />
-                    ON — Network Enabled (Less Safe)
+                    ON — Network enabled
                   </button>
                 </div>
               </div>
@@ -793,7 +800,34 @@ export default function AirlockApp() {
                 </div>
               </div>
               {session.metadata.inputType === 'file' ? (
-                <NutritionLabelPanel triageState={triageState} />
+                <NutritionLabelPanel
+                  triageState={triageState}
+                  footer={
+                    ipc ? (
+                      <>
+                        {m4Status ? (
+                          <p className="px-3 py-1 text-[10px] font-mono text-[#3DE8D4] border-t border-[#23272F]">
+                            {m4Status}
+                          </p>
+                        ) : null}
+                        <ClipboardSanitiseDrawer
+                          containerId={session.containerId}
+                          ipc={ipc}
+                          onStatus={(msg) => setM4Status(msg)}
+                          onError={(msg) => setError(msg)}
+                        />
+                        {activeFilePath?.toLowerCase().endsWith('.pdf') ? (
+                          <FlattenedPdfExportPanel
+                            session={session}
+                            ipc={ipc}
+                            onStatus={(msg) => setM4Status(msg)}
+                            onError={(msg) => setError(msg)}
+                          />
+                        ) : null}
+                      </>
+                    ) : null
+                  }
+                />
               ) : null}
             </motion.div>
           )}

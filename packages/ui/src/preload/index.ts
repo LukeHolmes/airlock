@@ -16,6 +16,9 @@ import {
   type SandboxSetupProgress,
   type SessionAnalysisResult,
   type SessionExportResult,
+  type FlattenedPdfExportResult,
+  type ClipboardPullGuestResult,
+  type ClipboardWriteSanitisedResult,
   type ReceiptVerifyResult,
   type ReceiptExportPublicKeyResult,
   type ReceiptKeyStatus,
@@ -39,6 +42,18 @@ async function analyzeSession(sessionId: string): Promise<SessionAnalysisResult>
 
 async function exportSession(sessionId: string): Promise<SessionExportResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_EXPORT, sessionId);
+}
+
+async function exportFlattenedPdf(session: AirlockSession): Promise<FlattenedPdfExportResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.SESSION_FLATTENED_PDF_EXPORT, session);
+}
+
+async function pullGuestClipboardText(containerId: string): Promise<ClipboardPullGuestResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_PULL_GUEST, containerId);
+}
+
+async function writeSanitisedClipboard(text: string): Promise<ClipboardWriteSanitisedResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.CLIPBOARD_WRITE_SANITISED, text);
 }
 
 async function verifyReceipt(): Promise<ReceiptVerifyResult> {
@@ -140,6 +155,9 @@ const airlockApi: AirlockIpcApi = {
   destroySession,
   analyzeSession,
   exportSession,
+  exportFlattenedPdf,
+  pullGuestClipboardText,
+  writeSanitisedClipboard,
   verifyReceipt,
   exportReceiptPublicKey,
   getReceiptKeyStatus,

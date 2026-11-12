@@ -1,0 +1,23 @@
+#!/bin/sh
+# Pixel-flatten a PDF (pdftoppm → img2pdf). No network. Runs as airlock user.
+set -eu
+if [ "$#" -ne 2 ]; then
+  echo "Usage: airlock-flatten-pdf <input.pdf> <output.pdf>" >&2
+  exit 2
+fi
+in="$1"
+out="$2"
+if [ ! -f "$in" ]; then
+  echo "Input not found: $in" >&2
+  exit 1
+fi
+tmpdir=$(mktemp -d)
+trap 'rm -rf "$tmpdir"' EXIT
+pdftoppm -r 150 -png "$in" "$tmpdir/page"
+set -- "$tmpdir"/page-*.png
+if [ "$#" -lt 1 ] || [ ! -f "$1" ]; then
+  echo "pdftoppm produced no pages" >&2
+  exit 1
+fi
+img2pdf "$@" -o "$out"
+chmod 0644 "$out"

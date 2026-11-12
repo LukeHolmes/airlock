@@ -84,3 +84,19 @@ assert office.get("macros") or office.get("auto_exec") or any(
 
 print("✓ Triage + X-ray fixture expectations met")
 PY
+
+echo "Flatten: js-marker.pdf (pixel rebuild)"
+docker run --rm \
+  --network none \
+  --cap-drop ALL \
+  --entrypoint /usr/local/bin/airlock-flatten-pdf \
+  -v "$FIXTURE_DIR/js-marker.pdf:/input/target.pdf:ro" \
+  -v "$FIXTURE_DIR:/out:rw" \
+  "$IMAGE" \
+  /input/target.pdf /out/flattened-js-marker.pdf
+
+if grep -qi javascript "$FIXTURE_DIR/flattened-js-marker.pdf"; then
+  echo "✗ Flattened PDF still contains JavaScript marker string"
+  exit 1
+fi
+echo "✓ Flattened PDF fixture has no /JavaScript byte marker"
