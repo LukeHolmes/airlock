@@ -91,6 +91,19 @@ export {
   type TriageSessionState,
 } from './triage/index.js';
 
+export {
+  scrubPlainText,
+  CLIPBOARD_SCRUB_NOTICE,
+  FLATTENED_PDF_EXPORT_NOTICE,
+  type ScrubPlainTextResult,
+} from './export/scrubPlainText.js';
+export {
+  flattenPdfInContainer,
+  containerTargetPathForHostFile,
+  assertFlattenedPdfBytes,
+} from './export/flattenedPdf.js';
+export { readGuestPlainClipboard } from './export/guestClipboard.js';
+
 export type {
   AirlockInput,
   AirlockSession,

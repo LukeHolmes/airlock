@@ -19,7 +19,6 @@ export default function VncViewer({ vncUrl, sessionId }: VncViewerProps) {
         className="absolute inset-0 h-full w-full border-0 bg-[#08090B]"
         sandbox="allow-scripts allow-same-origin allow-forms"
         referrerPolicy="no-referrer"
-        allow="clipboard-read; clipboard-write"
       />
     );
   }

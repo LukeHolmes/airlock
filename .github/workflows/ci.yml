@@ -56,6 +56,9 @@ jobs:
       - name: TypeScript compilation check
         run: pnpm typecheck
 
+      - name: Run @airlock/core unit tests (node --test)
+        run: pnpm --filter @airlock/core test
+
       - name: UI renderer tests (receipt toolbar)
         run: pnpm --filter @airlock/ui test
 

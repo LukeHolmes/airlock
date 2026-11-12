@@ -84,3 +84,41 @@ assert office.get("macros") or office.get("auto_exec") or any(
 
 print("✓ Triage + X-ray fixture expectations met")
 PY
+
+echo "Preparing one-page PDF for flatten smoke"
+python3 - "$FIXTURE_DIR/one.png" <<'PY'
+import struct, zlib, sys
+path = sys.argv[1]
+w = h = 8
+raw = b"".join(b"\x00" + (b"\xff\xff\xff" * w) for _ in range(h))
+compressed = zlib.compress(raw, 9)
+
+def chunk(tag, data):
+    return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+
+ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)
+png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr) + chunk(b"IDAT", compressed) + chunk(b"IEND", b"")
+open(path, "wb").write(png)
+PY
+chmod -R a+rw "$FIXTURE_DIR"
+docker run --rm --user 0:0 --entrypoint img2pdf \
+  -v "$FIXTURE_DIR:/work:rw" \
+  "$IMAGE" \
+  /work/one.png -o /work/one-page.pdf
+
+echo "Flatten: one-page.pdf (pixel rebuild)"
+docker run --rm \
+  --user 0:0 \
+  --network none \
+  --cap-drop ALL \
+  --entrypoint sh \
+  -v "$FIXTURE_DIR/one-page.pdf:/input/target.pdf:ro" \
+  "$IMAGE" \
+  -c '/usr/local/bin/airlock-flatten-pdf /input/target.pdf /tmp/flattened-one-page.pdf && cat /tmp/flattened-one-page.pdf' \
+  >"$FIXTURE_DIR/flattened-one-page.pdf"
+
+if grep -qi javascript "$FIXTURE_DIR/flattened-one-page.pdf"; then
+  echo "✗ Flattened PDF still contains JavaScript marker string"
+  exit 1
+fi
+echo "✓ Flattened PDF fixture has no /JavaScript byte marker"

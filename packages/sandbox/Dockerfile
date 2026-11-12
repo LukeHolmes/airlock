@@ -274,7 +274,8 @@ EOF
 # Document viewer (Evince) and dependencies
 RUN apk add --no-cache \
     evince \
-    poppler-utils
+    poppler-utils \
+    xclip
 
 # ------------------------------------------------------------------------------
 # Stage 4b: Static triage tools + LibreOffice (offline, baked in at build time)
@@ -299,14 +300,17 @@ RUN apk add --no-cache \
     libreoffice-calc \
     libreoffice-impress
 
-RUN pip3 install --no-cache-dir --break-system-packages 'oletools==0.60.2'
+RUN pip3 install --no-cache-dir --break-system-packages \
+    'oletools==0.60.2' \
+    'img2pdf==0.5.1'
 
 COPY triage/yara /usr/local/share/airlock/triage/yara
 COPY triage/airlock-pdf-probe.py /usr/local/bin/airlock-pdf-probe.py
 COPY triage/airlock-office-probe.py /usr/local/bin/airlock-office-probe.py
 COPY triage/airlock-triage /usr/local/bin/airlock-triage
 COPY triage/airlock-xray-probe.py /usr/local/bin/airlock-xray-probe.py
-RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py /usr/local/bin/airlock-xray-probe.py
+COPY triage/airlock-flatten-pdf /usr/local/bin/airlock-flatten-pdf
+RUN chmod +x /usr/local/bin/airlock-triage /usr/local/bin/airlock-pdf-probe.py /usr/local/bin/airlock-office-probe.py /usr/local/bin/airlock-xray-probe.py /usr/local/bin/airlock-flatten-pdf
 
 # ------------------------------------------------------------------------------
 # Stage 5: Final Assembly
