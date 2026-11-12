@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.4.0 — unreleased
+## 0.4.1
+
+- Managed-container lifecycle (#36): owner-PID labels, stale recovery on startup, shutdown on quit/crash; harness destroy orphan retry.
+- Version metadata and displayed app version aligned to 0.4.1.
+
+## 0.4.0
 
 Portfolio-ready beta.
 
