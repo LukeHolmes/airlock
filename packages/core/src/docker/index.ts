@@ -2,7 +2,7 @@
  * Airlock Docker Module
  *
  * Container lifecycle management with security hardening.
- * Derived from Dangerzone's isolation provider model.
+ * Docker-backed isolation primitives for disposable sandbox sessions.
  */
 
 export {

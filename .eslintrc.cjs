@@ -83,9 +83,7 @@ module.exports = {
     '*.js',
     '*.mjs',
     '*.cjs',
-    '**/src/_ref/**',
     '.github/',
-    'openclaw-ref/',
     'plans/',
   ],
 };

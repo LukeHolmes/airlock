@@ -1,7 +1,7 @@
 /**
  * ContainerManager — dockerode lifecycle manager for Airlock
  *
- * Derived from Dangerzone's isolation_provider/container.py security model:
+ * Runtime isolation model (cap-drop, seccomp, read-only root, network policy):
  * - Internal bridge network when VNC is published (no external egress)
  * - NetworkMode: 'none' when no VNC port is needed
  * - CapDrop: ['ALL'] (drop all capabilities)

@@ -6,7 +6,7 @@ Drop a file in. It opens in an isolated container. The container dies when you'r
 
 **End users:** see **[Getting started](docs/getting-started.md)** for install steps, first-run sandbox setup, and troubleshooting.
 
-Airlock is a hard fork of the OpenClaw monorepo architecture, entirely gutted of its AI/LLM components and rebuilt as a strict, deterministic, security-first local execution bus.
+Design inspired by OpenClaw (Electron shell patterns; no OpenClaw source remains in this repository).
 
 **Current version:** `0.4.1`
 
@@ -160,7 +160,7 @@ See also [`docs/security-model.md`](docs/security-model.md) for user-facing isol
 |---|---|
 | Network | Internal bridge (`airlock-isolated`) for file sessions; bridge egress only when opted in |
 | Capabilities | All dropped (`--cap-drop ALL`) |
-| Seccomp | Custom profile (Dangerzone-derived) |
+| Seccomp | Custom profile (Moby default basis, Airlock-hardened) |
 | Root filesystem | **Read-only** rootfs; bounded **tmpfs** for `/tmp`, caches, and viewer config |
 | Resources | **2 GiB** RAM (swap capped to match), **2 CPUs**, **256 PIDs** (defaults) |
 | AppArmor | Planned — not fully enforced yet |
@@ -292,13 +292,13 @@ After destroying a workspace, click **Analyze session** to run the lightweight d
 
 Airlock's design draws from four open-source reference implementations:
 
-- **OpenClaw** — Electron shell and IPC patterns (AI components removed)
 - **KasmVNC** — Containerised headless X11 + VNC stream pipeline
 - **Dockerode** — Node.js Docker daemon bindings and container lifecycle patterns
-- **Dangerzone** — Container security hardening profiles, seccomp policies, and isolation primitives
+- **Moby (Docker)** — Default container seccomp profile (v27.4.0) as the upstream syscall baseline
+- **Dangerzone** — Inspiration for disposable, network-isolated viewing workflows (not a code or seccomp source)
 
 ---
 
 ## Licence
 
-MIT
+Apache-2.0 (see [LICENSE](LICENSE) and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md)).

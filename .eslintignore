@@ -7,10 +7,6 @@ node_modules/
 *.mjs
 *.cjs
 
-# Reference code (not maintained by us)
-openclaw-ref/
-packages/*/src/_ref/
-
 # Config files
 .eslintrc.cjs
 .prettierrc
