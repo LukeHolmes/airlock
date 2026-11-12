@@ -34,6 +34,8 @@ export const IPC_CHANNELS = {
   SANDBOX_SETUP_PROGRESS: 'airlock:sandbox:setup-progress',
   OPEN_SETUP_GUIDE: 'airlock:system:open-setup-guide',
   OPEN_DOCKER_DOWNLOAD: 'airlock:system:open-docker-download',
+  REMOVE_DATA_PREVIEW: 'airlock:system:remove-data-preview',
+  REMOVE_AIRLOCK_DATA: 'airlock:system:remove-airlock-data',
 } as const;
 
 // Type-safe channel names
@@ -138,6 +140,26 @@ export type ReceiptKeyStatus = {
   protectionLevel: 'os-keychain' | 'file-0600';
   warning: string | null;
 };
+
+export type RemoveDataPreview = {
+  userDataDir: string;
+  userDataItems: string[];
+  managedContainers: { id: string; name: string }[];
+  sandboxImages: string[];
+  warnings: string[];
+};
+
+export type RemoveAirlockDataResult = {
+  ok: true;
+  containersRemoved: string[];
+  imagesRemoved: string[];
+  userDataEntriesRemoved: string[];
+  partialErrors: string[];
+};
+export type RemoveAirlockDataOutcome =
+  | RemoveAirlockDataResult
+  | { ok: false; canceled: true }
+  | { ok: false; canceled: false; error: string };
 
 export type AirlockReadiness = {
   docker: { available: boolean };
@@ -248,6 +270,8 @@ export interface AirlockIpcApi {
   onSandboxSetupProgress(callback: (progress: SandboxSetupProgress) => void): () => void;
   openSetupGuide(): Promise<void>;
   openDockerDownload(): Promise<void>;
+  previewRemoveAirlockData(): Promise<RemoveDataPreview>;
+  removeAirlockData(): Promise<RemoveAirlockDataOutcome>;
   getPathForFile(file: File): string;
   onOpenFile(callback: (filePath: string) => void): () => void;
 }

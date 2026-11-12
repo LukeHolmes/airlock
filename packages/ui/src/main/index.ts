@@ -15,6 +15,8 @@ import { fileURLToPath } from 'node:url';
 
 import {
   docker,
+  previewRemoveAirlockData,
+  removeAirlockData,
   executeAirlockSession,
   destroyAirlockSession,
   analyzeSession,
@@ -61,6 +63,8 @@ import {
   type ReceiptVerifyResult,
   type ReceiptExportPublicKeyResult,
   type ReceiptKeyStatus,
+  type RemoveDataPreview,
+  type RemoveAirlockDataOutcome,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -70,6 +74,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const VERSION = '0.4.1';
+
+function getEngineClient() {
+  return docker.getSharedDockerClient();
+}
 
 function parseSessionPort(session: AirlockSession): number | undefined {
   if (!session.vncUrl) {
@@ -709,6 +717,72 @@ function registerIpcHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.OPEN_DOCKER_DOWNLOAD, async (): Promise<void> => {
     await shell.openExternal(DOCKER_DOWNLOAD_URL);
   });
+
+  ipcMain.handle(IPC_CHANNELS.REMOVE_DATA_PREVIEW, async (): Promise<RemoveDataPreview> => {
+    return previewRemoveAirlockData(getEngineClient(), app.getPath('userData'));
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.REMOVE_AIRLOCK_DATA,
+    async (event): Promise<RemoveAirlockDataOutcome> => {
+      const userDataDir = app.getPath('userData');
+      const preview = await previewRemoveAirlockData(getEngineClient(), userDataDir);
+      const detailLines = [
+        ...preview.warnings.map((w) => `• ${w}`),
+        '',
+        'User data:',
+        ...preview.userDataItems.map((line) => `  - ${line}`),
+        '',
+        preview.managedContainers.length
+          ? `Managed containers (${preview.managedContainers.length}): ${preview.managedContainers.map((c) => c.name).join(', ')}`
+          : 'Managed containers: none listed',
+        '',
+        preview.sandboxImages.length
+          ? `Sandbox images: ${preview.sandboxImages.join(', ')}`
+          : 'Sandbox images: none found locally',
+      ];
+
+      const parent = BrowserWindow.fromWebContents(event.sender);
+      const box = {
+        type: 'warning' as const,
+        title: 'Remove Airlock data',
+        message: 'Remove Airlock-managed containers, Airlock sandbox images, and local user data?',
+        detail: detailLines.join('\n'),
+        buttons: ['Remove', 'Cancel'] as string[],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      };
+      const { response } = parent
+        ? await dialog.showMessageBox(parent, box)
+        : await dialog.showMessageBox(box);
+
+      if (response !== 0) {
+        return { ok: false, canceled: true };
+      }
+
+      try {
+        await docker.shutdownManagedContainers();
+        const outcome = await removeAirlockData(getEngineClient(), userDataDir);
+        const partialErrors = [
+          ...outcome.containersFailed.map((id) => `Container not removed: ${id}`),
+          ...outcome.imagesFailed.map((ref) => `Image not removed: ${ref}`),
+          ...outcome.userDataFailed.map((p) => `User data path not removed: ${p}`),
+        ];
+        await refreshReadiness();
+        return {
+          ok: true,
+          containersRemoved: outcome.containersRemoved,
+          imagesRemoved: outcome.imagesRemoved,
+          userDataEntriesRemoved: outcome.userDataEntriesRemoved,
+          partialErrors,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { ok: false, canceled: false, error: message };
+      }
+    },
+  );
 
   console.log('[main] IPC handlers registered');
 }

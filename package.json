@@ -117,7 +117,8 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "packages/ui/build/icons/icon.ico"
+      "icon": "packages/ui/build/icons/icon.ico",
+      "include": "packages/ui/build/installer.nsh"
     },
     "linux": {
       "target": "AppImage",
