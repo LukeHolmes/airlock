@@ -23,6 +23,7 @@ export {
   TRIAGE_NO_INDICATORS_MESSAGE,
   type StaticTriageReport,
   type TriageRiskLevel,
+  type TriageXrayFinding,
 } from './triage/types.js';
 
 export type { TriageSessionState } from './triage/triageStore.js';

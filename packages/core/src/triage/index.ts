@@ -4,6 +4,7 @@ export {
   type StaticTriageReport,
   type TriageRawOutput,
   type TriageRiskLevel,
+  type TriageXrayFinding,
 } from './types.js';
 export { buildStaticTriageReport } from './normalize.js';
 export {
