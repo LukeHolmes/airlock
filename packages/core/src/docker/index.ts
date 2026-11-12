@@ -31,7 +31,10 @@ export {
 
 export { buildAirlockHostConfig } from './containerHostConfig.js';
 
-export { AIRLOCK_CONTAINER_RUNTIME_ENV, resolveOptionalContainerRuntime } from './containerRuntime.js';
+export {
+  AIRLOCK_CONTAINER_RUNTIME_ENV,
+  resolveOptionalContainerRuntime,
+} from './containerRuntime.js';
 
 export {
   isProcessAlive,

@@ -5,15 +5,16 @@
 
 const MIB = 1024 * 1024;
 
-export const CONTAINER_MEMORY_BYTES = parsePositiveInt(process.env.AIRLOCK_CONTAINER_MEMORY_MB, 2048) * MIB;
+export const CONTAINER_MEMORY_BYTES =
+  parsePositiveInt(process.env.AIRLOCK_CONTAINER_MEMORY_MB, 2048) * MIB;
 
 /** memory-swap == memory disables extra swap (Docker semantics). */
-export const CONTAINER_MEMORY_SWAP_BYTES = parsePositiveInt(
-  process.env.AIRLOCK_CONTAINER_MEMORY_SWAP_MB,
-  CONTAINER_MEMORY_BYTES / MIB,
-) * MIB;
+export const CONTAINER_MEMORY_SWAP_BYTES =
+  parsePositiveInt(process.env.AIRLOCK_CONTAINER_MEMORY_SWAP_MB, CONTAINER_MEMORY_BYTES / MIB) *
+  MIB;
 
-export const CONTAINER_NANO_CPUS = parsePositiveInt(process.env.AIRLOCK_CONTAINER_CPUS, 2) * 1_000_000_000;
+export const CONTAINER_NANO_CPUS =
+  parsePositiveInt(process.env.AIRLOCK_CONTAINER_CPUS, 2) * 1_000_000_000;
 
 export const CONTAINER_PIDS_LIMIT = parsePositiveInt(process.env.AIRLOCK_CONTAINER_PIDS_LIMIT, 256);
 

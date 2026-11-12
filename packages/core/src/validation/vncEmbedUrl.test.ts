@@ -5,10 +5,7 @@ import { isAllowedVncEmbedUrl } from './vncEmbedUrl.js';
 
 describe('isAllowedVncEmbedUrl', () => {
   test('allows loopback HTTP VNC pages', () => {
-    assert.equal(
-      isAllowedVncEmbedUrl('http://127.0.0.1:32768/vnc.html?autoconnect=true'),
-      true,
-    );
+    assert.equal(isAllowedVncEmbedUrl('http://127.0.0.1:32768/vnc.html?autoconnect=true'), true);
     assert.equal(isAllowedVncEmbedUrl('http://localhost:6901/'), true);
   });
 
