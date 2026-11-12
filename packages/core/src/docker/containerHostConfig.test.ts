@@ -32,8 +32,10 @@ describe('buildAirlockHostConfig', () => {
     const securityOpt = hostConfig.SecurityOpt as string[] | undefined;
     assert.ok(securityOpt?.includes('no-new-privileges'));
     const seccompOpt = securityOpt?.find((opt) => opt.startsWith('seccomp='));
-    assert.ok(seccompOpt);
-    const embedded = seccompOpt!.slice('seccomp='.length);
+    if (!seccompOpt) {
+      assert.fail('seccomp security opt missing');
+    }
+    const embedded = seccompOpt.slice('seccomp='.length);
     const parsed = JSON.parse(embedded) as typeof AIRLOCK_SECCOMP_PROFILE;
     assert.equal(parsed.syscalls[0]?.errnoRet, 1);
     assert.ok(parsed.syscalls[0]?.names?.includes('vmsplice'));
