@@ -108,12 +108,10 @@ export type FlattenedPdfExportResult =
   | { ok: false; canceled: false; error: string };
 
 export type ClipboardPullGuestResult =
-  | { ok: true; rawLength: number; scrubbed: string; notice: string }
-  | { ok: false; error: string };
+  { ok: true; rawLength: number; scrubbed: string; notice: string } | { ok: false; error: string };
 
 export type ClipboardWriteSanitisedResult =
-  | { ok: true; notice: string }
-  | { ok: false; error: string };
+  { ok: true; notice: string } | { ok: false; error: string };
 
 export type ReceiptVerifyResult =
   | {

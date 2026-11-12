@@ -473,13 +473,25 @@ function registerIpcHandlers(): void {
       try {
         const artefacts = getSessionArtefacts(activeSession.sessionId);
         if (artefacts.input.type !== 'file') {
-          return { ok: false, canceled: false, error: 'Flattened PDF export is only for file sessions' };
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Flattened PDF export is only for file sessions',
+          };
         }
         if (!artefacts.input.value.toLowerCase().endsWith('.pdf')) {
-          return { ok: false, canceled: false, error: 'Flattened export requires a PDF input file' };
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Flattened export requires a PDF input file',
+          };
         }
         if (activeSession.status !== 'running') {
-          return { ok: false, canceled: false, error: 'Session must be running to export from the sandbox' };
+          return {
+            ok: false,
+            canceled: false,
+            error: 'Session must be running to export from the sandbox',
+          };
         }
         const containerPath = containerTargetPathForHostFile(artefacts.input.value);
         const pdf = flattenPdfInContainer(activeSession.containerId, containerPath);
