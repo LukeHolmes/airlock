@@ -28,8 +28,9 @@ describe('buildAirlockHostConfig', () => {
     assert.equal(hostConfig.MemorySwap, CONTAINER_MEMORY_SWAP_BYTES);
     assert.equal(hostConfig.NanoCpus, CONTAINER_NANO_CPUS);
     assert.equal(hostConfig.PidsLimit, CONTAINER_PIDS_LIMIT);
-    assert.ok(hostConfig.SecurityOpt?.includes('no-new-privileges'));
-    assert.ok(hostConfig.SecurityOpt?.some((opt: string) => opt.startsWith('seccomp=')));
+    const securityOpt = hostConfig.SecurityOpt as string[] | undefined;
+    assert.ok(securityOpt?.includes('no-new-privileges'));
+    assert.ok(securityOpt?.some((opt) => opt.startsWith('seccomp=')));
     assert.equal(hostConfig.AutoRemove, true);
   });
 
