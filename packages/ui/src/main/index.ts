@@ -19,6 +19,7 @@ import {
   executeAirlockSession,
   destroyAirlockSession,
   analyzeSession,
+  getSessionTriage,
   prepareSessionExport,
   validateDrop,
   configureSandboxImage,
@@ -39,6 +40,7 @@ import {
   type EnsureSandboxImageOutcome,
   type SandboxSetupProgress,
   type SessionAnalysisResult,
+  type SessionTriageSnapshot,
   type SessionExportResult,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -401,6 +403,13 @@ function registerIpcHandlers(): void {
     async (_event, sessionId: string): Promise<SessionAnalysisResult> => {
       console.log(`[ipc] analyzeSession ${sessionId.slice(0, 12)}`);
       return analyzeSession(sessionId);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.SESSION_GET_TRIAGE,
+    async (_event, sessionId: string): Promise<SessionTriageSnapshot> => {
+      return getSessionTriage(sessionId);
     },
   );
 

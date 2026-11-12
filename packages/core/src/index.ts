@@ -65,6 +65,15 @@ export {
   type DropValidationResult,
 } from './validation/index.js';
 
+export {
+  getSessionTriage,
+  TRIAGE_SCHEMA_VERSION,
+  TRIAGE_NO_INDICATORS_MESSAGE,
+  type StaticTriageReport,
+  type SessionTriageSnapshot,
+  type TriageSessionState,
+} from './triage/index.js';
+
 export type {
   AirlockInput,
   AirlockSession,

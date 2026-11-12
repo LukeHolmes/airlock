@@ -12,6 +12,8 @@ import {
   WifiOff,
 } from 'lucide-react';
 import VncViewer from './VncViewer';
+import NutritionLabelPanel from './NutritionLabelPanel';
+import type { TriageSessionState } from '@airlock/core/browser';
 import FirstRunProgress from './FirstRunProgress';
 import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
@@ -55,6 +57,7 @@ export default function AirlockApp() {
   const [exportMessage, setExportMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
+  const [triageState, setTriageState] = useState<TriageSessionState>({ status: 'pending' });
 
   const handleReadinessRefresh = useCallback(async () => {
     if (!ipc) return;
@@ -283,6 +286,7 @@ export default function AirlockApp() {
     });
 
     const unsubStarted = ipc.onSessionStarted((event: SessionStartedEvent) => {
+      setTriageState({ status: 'pending' });
       setSession(event.session);
       if (event.session.status === 'running' && event.session.vncUrl) {
         const streamLine = `[vnc] Stream at ${event.session.vncUrl}`;
@@ -312,6 +316,34 @@ export default function AirlockApp() {
       unsubOpenFile();
     };
   }, [handleFilePath]);
+
+  useEffect(() => {
+    if (!ipc || !session || session.status !== 'running') {
+      return;
+    }
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const snapshot = await ipc.getSessionTriage(session.sessionId);
+        if (!cancelled) {
+          setTriageState(snapshot.state);
+        }
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+
+    void poll();
+    const interval = setInterval(() => {
+      void poll();
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [session]);
 
   const handleDestroyWorkspace = useCallback(async () => {
     if (!session || session.status !== 'running' || !ipc) return;
@@ -725,8 +757,9 @@ export default function AirlockApp() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
-              className="flex flex-1 min-h-0 w-full flex-col bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
+              className="flex flex-1 min-h-0 w-full flex-row bg-[#12151A] rounded-[10px] border border-[#3DE8D4]/40 shadow-[0_0_0_1px_#0E5B53,0_0_22px_rgba(61,232,212,0.15)] overflow-hidden"
             >
+              <div className="flex flex-1 min-w-0 flex-col min-h-0">
               <div className="h-10 bg-[#0C0E11] border-b border-[#23272F] flex items-center px-4 gap-4">
                 <div className="flex items-center gap-1.5 opacity-50">
                   <div className="w-2.5 h-2.5 rounded-full bg-[#F23D3D]" />
@@ -746,6 +779,10 @@ export default function AirlockApp() {
               <div className="flex-1 relative bg-[#08090B] min-h-0">
                 <VncViewer vncUrl={session.vncUrl} sessionId={session.sessionId} />
               </div>
+              </div>
+              {session.metadata.inputType === 'file' ? (
+                <NutritionLabelPanel triageState={triageState} />
+              ) : null}
             </motion.div>
           )}
         </AnimatePresence>

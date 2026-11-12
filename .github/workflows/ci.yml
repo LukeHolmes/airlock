@@ -136,6 +136,9 @@ jobs:
             echo "✓ Network isolation confirmed"
           fi
 
+          chmod +x scripts/sandbox-triage-ci.sh
+          scripts/sandbox-triage-ci.sh airlock/sandbox:test
+
           echo "Cleaning up test container..."
           docker stop airlock-test || true
           docker rm airlock-test || true

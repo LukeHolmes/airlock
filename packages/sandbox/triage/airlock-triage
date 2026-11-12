@@ -1,0 +1,116 @@
+#!/bin/sh
+# Static triage runner — outputs JSON to /tmp/airlock-triage.json (offline, non-root).
+set -eu
+
+TARGET="${1:-}"
+PROGRESS="/tmp/airlock-triage.progress"
+REPORT="/tmp/airlock-triage.json"
+RULES="/usr/local/share/airlock/triage/yara/airlock_rules.yar"
+WORKDIR="/tmp/airlock-triage-work"
+
+progress() {
+  printf '%s\n' "$1" >>"$PROGRESS"
+}
+
+if [ -z "$TARGET" ] || [ ! -f "$TARGET" ]; then
+  printf '{"version":1,"errors":["missing target file"]}\n' >"$REPORT"
+  exit 1
+fi
+
+mkdir -p "$WORKDIR"
+: >"$PROGRESS"
+progress "start"
+
+file_name=$(basename "$TARGET")
+file_size=$(wc -c <"$TARGET" | tr -d ' ')
+sha256=$(sha256sum "$TARGET" | awk '{print $1}')
+detected_mime=$(file -b --mime-type "$TARGET" 2>/dev/null || echo "application/octet-stream")
+declared_ext=".${file_name##*.}"
+if [ "$declared_ext" = ".$file_name" ]; then
+  declared_ext=""
+fi
+
+progress "hashing"
+
+exif_path="$WORKDIR/exif.json"
+if command -v exiftool >/dev/null 2>&1; then
+  progress "exiftool"
+  exiftool -j -charset utf8 "$TARGET" >"$exif_path" 2>/dev/null || echo 'null' >"$exif_path"
+else
+  echo 'null' >"$exif_path"
+fi
+
+yara_path="$WORKDIR/yara.json"
+progress "yara"
+if command -v yara >/dev/null 2>&1 && [ -f "$RULES" ]; then
+  yara -w "$RULES" "$TARGET" 2>/dev/null | awk '
+    BEGIN { printf "[" }
+    NF>=1 && $1 ~ /^airlock_/ {
+      if (n++) printf ","
+      printf "{\"rule\":\"%s\"}", $1
+    }
+    END { printf "]" }' >"$yara_path" || echo '[]' >"$yara_path"
+else
+  echo '[]' >"$yara_path"
+fi
+
+pdf_path="$WORKDIR/pdf.json"
+echo 'null' >"$pdf_path"
+case "$detected_mime" in
+  application/pdf*)
+    progress "pdf"
+    if [ -f /usr/local/bin/airlock-pdf-probe.py ]; then
+      python3 /usr/local/bin/airlock-pdf-probe.py "$TARGET" >"$pdf_path" 2>/dev/null || echo 'null' >"$pdf_path"
+    fi
+    ;;
+esac
+
+office_path="$WORKDIR/office.json"
+echo 'null' >"$office_path"
+case "$detected_mime" in
+  application/msword*|application/vnd.ms-*|application/vnd.openxmlformats-officedocument.*)
+    progress "office"
+    if [ -f /usr/local/bin/airlock-office-probe.py ]; then
+      python3 /usr/local/bin/airlock-office-probe.py "$TARGET" >"$office_path" 2>/dev/null || echo 'null' >"$office_path"
+    fi
+    ;;
+esac
+
+export TARGET file_name file_size sha256 detected_mime declared_ext
+export exif_path yara_path pdf_path office_path REPORT
+python3 <<'PY'
+import json
+import os
+
+def load(path):
+    with open(path, "r", encoding="utf-8") as fh:
+        raw = fh.read().strip()
+    if not raw or raw == "null":
+        return None
+    return json.loads(raw)
+
+out = {
+    "version": 1,
+    "filePath": os.environ["TARGET"],
+    "fileName": os.environ["file_name"],
+    "sizeBytes": int(os.environ["file_size"]),
+    "sha256": os.environ["sha256"],
+    "detectedMime": os.environ["detected_mime"],
+    "declaredExtension": os.environ["declared_ext"],
+    "exiftool": load(os.environ["exif_path"]),
+    "yara": load(os.environ["yara_path"]) or [],
+    "errors": [],
+}
+pdf = load(os.environ["pdf_path"])
+if pdf:
+    out["pdf"] = pdf
+office = load(os.environ["office_path"])
+if office:
+    out["office"] = office
+with open(os.environ["REPORT"], "w", encoding="utf-8") as fh:
+    json.dump(out, fh, separators=(",", ":"))
+PY
+
+progress "complete"
+
+cat "$REPORT"

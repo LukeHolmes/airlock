@@ -6,6 +6,7 @@ import {
   serializeSessionExport,
   type SessionExportDocument,
 } from './sessionExport.js';
+import { getTriageSessionState } from '../triage/triageStore.js';
 import { resolveSessionInputFingerprint } from './sessionExportFingerprint.js';
 
 export type PreparedSessionExport = {
@@ -23,6 +24,9 @@ export async function prepareSessionExport(
   const artefacts = getSessionArtefacts(sessionId);
   const containerId = extractContainerIdFromLogs(artefacts.logs);
   const inputFingerprint = await resolveSessionInputFingerprint(artefacts);
+  const triageState = getTriageSessionState(sessionId);
+  const staticTriage =
+    triageState?.status === 'complete' ? triageState.report : undefined;
 
   const document = serializeSessionExport({
     exportedAt,
@@ -32,6 +36,7 @@ export async function prepareSessionExport(
     artefacts,
     analysis,
     inputFingerprint,
+    staticTriage,
   });
 
   const shortId = sessionId.replace(/-/g, '').slice(0, 12);

@@ -32,7 +32,7 @@ Captured on a clean Linux VM with Docker Engine, Xvfb, and builds from `main` (s
 
 ## What It Does
 
-You drag a file — a PDF, a `.docx`, an HTML attachment, a suspicious installer — onto Airlock. It spins up an ephemeral Docker container with a minimal headless desktop (KasmVNC), opens the file inside it using an appropriate sandboxed application (Chromium, Evince, LibreOffice), and streams the visual output back to your screen via a WebSocket VNC feed.
+You drag a file — a PDF, a `.docx`, an HTML attachment, a suspicious installer — onto Airlock. It spins up an ephemeral Docker container with a minimal headless desktop (KasmVNC), opens the file inside it using a sandboxed viewer (**Chromium**, **Evince**, **LibreOffice** for Office formats), runs **offline static triage** (ExifTool, PDF/Office probes, vendored YARA — no ClamAV), and streams the visual output plus a **nutrition-label panel** back to your screen via a WebSocket VNC feed.
 
 When you close the session, the container is forcibly killed and removed. No trace. No persistence. No network by default.
 

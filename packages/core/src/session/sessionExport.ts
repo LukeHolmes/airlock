@@ -1,9 +1,10 @@
 import type { LightweightAnalysis } from '../analysis/types.js';
+import type { StaticTriageReport } from '../triage/types.js';
 import type { SessionArtefacts } from './artefacts.js';
 import type { AirlockSession } from './types.js';
 
 /** Document schema version for `docs/session-export.schema.json`. */
-export const SESSION_EXPORT_SCHEMA_VERSION = 1;
+export const SESSION_EXPORT_SCHEMA_VERSION = 2;
 
 export type SessionExportFileFingerprint = {
   fileName: string;
@@ -25,6 +26,7 @@ export type SessionExportSerializerInput = {
   artefacts: SessionArtefacts;
   analysis: LightweightAnalysis;
   inputFingerprint?: SessionExportFileFingerprint | SessionExportUrlFingerprint;
+  staticTriage?: StaticTriageReport;
 };
 
 export type SessionExportDocument = {
@@ -42,6 +44,7 @@ export type SessionExportDocument = {
     logs: SessionArtefacts['logs'];
   };
   analysis: LightweightAnalysis;
+  staticTriage?: StaticTriageReport;
 };
 
 export function extractContainerIdFromLogs(logs: SessionArtefacts['logs']): string | undefined {
@@ -74,6 +77,7 @@ export function serializeSessionExport(input: SessionExportSerializerInput): Ses
       logs: input.artefacts.logs,
     },
     analysis: input.analysis,
+    ...(input.staticTriage ? { staticTriage: input.staticTriage } : {}),
   };
 }
 
