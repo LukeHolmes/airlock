@@ -97,37 +97,48 @@
 
 | | |
 |---|---|
-| **Scope** | Optional **plain-English summary** of deterministic triage output on the **host** (never inside the sandbox). |
-| **Definition of done** | Settings toggle (default off); pinned GGUF download with SHA-256 verify; summary UI labelled **“AI summary (not validated)”**; signed receipt excludes AI text or marks it non-validated; threat model documents one-time model download. |
+| **Scope** | Optional **plain-English summary** of deterministic triage output on the **host** (never inside the sandbox or sandbox image). |
+| **Definition of done** | Settings toggle (default off); pinned GGUF **on-demand download** with **SHA-256** verify; summary UI labelled **“AI summary (not validated)”**; **signed receipt excludes** AI text; threat model documents one-time model download; AI **never decides risk**. |
 | **Effort** | **L** (~3 weeks, after M1–M3 foundations) |
 
 **Architecture**
 
 - The **AI never runs inside the sandbox container.** The container runs only deterministic tools and emits **structured JSON findings**.
-- The **host** runs inference via **node-llama-cpp** in the **Electron main process** (not the renderer; not Transformers.js / WebGPU).
-- Model: small quantised **GGUF** (~**1.5B**, **Q4_K_M**). Prefer an **Apache-2.0** instruct model such as **Qwen2.5-1.5B-Instruct** — **licences must be verified** before ship.
+- Inference runs on the **host** via **node-llama-cpp** inside an **Electron `utilityProcess`** — **not** the main process, **not** the renderer. A native crash or OOM in the model worker must not take down the desktop shell; enforce a **memory cap** and **inference timeout** with hard kill of the utility process.
+- **Explicitly reject** the Transformers.js / WebGPU-in-renderer route: it would require `wasm-unsafe-eval` in the renderer **CSP** and would loosen the sandboxed renderer posture established in **M0**.
+- Model: small quantised **GGUF** (~**1.5B**, **Q4_K_M**). Default target **Qwen2.5-1.5B-Instruct** (**Apache-2.0**). Alternative **Phi-3 / 3.5-mini** (**MIT**). **Llama 3.2** uses the **Llama Community Licence** (not OSI-approved) — document if offered, **not the default**.
 
 **Opt-in and supply chain**
 
-- **Off by default.** User enables in settings and triggers a **one-time download** (pinned version + **SHA-256** verification).
-- Model stored under the app **`userData`** directory; runs **fully offline** after download.
+- **Off by default.** User enables in settings and triggers a **one-time download** (pinned version + **SHA-256** verification). The model is **not** baked into the sandbox image.
+- Model stored under app **`userData`**; runs **fully offline** after download.
 - The **one-time download** is called out in the **threat model** (network use is user-initiated, not session-default).
 
 **Prompt-injection defence**
 
-- The model receives **only structured tool JSON**, never raw document bytes or full extracted text.
-- Strings originating from the file (macro keywords, URLs, etc.) are **length-capped** and passed as **quoted data fields**, not as instructions.
+- Triage JSON can contain **attacker-controlled strings** (macro source, metadata, URLs, hidden text). Feed the model only a **reduced, allow-listed view**: enums, booleans, counts, rule IDs, **truncated and escaped** indicator names — **never** raw document text, macro bodies, or metadata values.
+- Constrain generation with a **JSON-schema grammar** (node-llama-cpp); render through a **fixed template**. **Reject** model output that mentions entities or URLs **not present** in the allow-listed input indicators.
 
-**Risk and compliance (GxP / Part 11 / Annex 11)**
+**When inference runs**
 
+- **Do not call the model** when deterministic risk is **`none`** — show the fixed string **`No known risk indicators found (static checks)`** instead.
 - **Risk level** is decided by **deterministic rules only** — never by the model.
-- The model **translates** findings into plain English for the operator.
+- **Post-filter:** model output must never contain the word **`safe`** (case-insensitive); drop or replace offending summaries.
+
+**Risk, UI, and signed receipt (GxP / Part 11 / Annex 11)**
+
 - UI: separate **“AI summary (not validated)”** panel — never conflated with signed findings.
-- **Signed inspection receipt (M3):** contains raw deterministic findings; AI text is **excluded** or stored as explicit **non-validated, unsigned commentary**.
+- **Signed inspection receipt (M3):** contains raw deterministic findings only; AI text is **excluded** from the JCS-signed payload (`reserved.aiSummaryExcluded` remains true).
+
+**Reproducibility (GxP)**
+
+- Inference settings: **temperature 0**, **fixed seed** where the backend supports it.
+- Persist alongside the summary (outside the signature): **model ID**, **model SHA-256**, **prompt template hash**, **node-llama-cpp / engine version**.
 
 **Hardware**
 
-- **CPU** inference by default; **Metal**, **CUDA**, or **Vulkan** when available via node-llama-cpp backends.
+- **CPU** inference by default.
+- **GPU** optional via node-llama-cpp backends (**Metal**, **Vulkan**, **CUDA** when present). **No CUDA binaries bundled by default** — keep installer size down; CUDA is opt-in/download if ever offered.
 - Graceful CPU fallback; **no hard GPU requirement**.
 
 ---
