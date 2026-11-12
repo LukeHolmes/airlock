@@ -77,6 +77,44 @@
       "category": "public.app-category.utilities",
       "icon": "packages/ui/build/icons/icon.icns"
     },
+    "protocols": [
+      {
+        "name": "Airlock",
+        "schemes": ["airlock"]
+      }
+    ],
+    "fileAssociations": [
+      {
+        "ext": "pdf",
+        "name": "PDF",
+        "description": "Open in Airlock",
+        "role": "Viewer"
+      },
+      {
+        "ext": "doc",
+        "name": "Word document",
+        "description": "Open in Airlock",
+        "role": "Viewer"
+      },
+      {
+        "ext": "docx",
+        "name": "Word document",
+        "description": "Open in Airlock",
+        "role": "Viewer"
+      },
+      {
+        "ext": "html",
+        "name": "HTML",
+        "description": "Open in Airlock",
+        "role": "Viewer"
+      },
+      {
+        "ext": "htm",
+        "name": "HTML",
+        "description": "Open in Airlock",
+        "role": "Viewer"
+      }
+    ],
     "win": {
       "target": "nsis",
       "icon": "packages/ui/build/icons/icon.ico",

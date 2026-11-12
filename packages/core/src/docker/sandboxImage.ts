@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import Dockerode from 'dockerode';
 
+import { getSharedDockerClient } from './engineClient.js';
 import { LOCAL_SANDBOX_IMAGE } from './imageCheck.js';
 
 export { LOCAL_SANDBOX_IMAGE };
@@ -65,13 +66,8 @@ let sandboxImageConfig: SandboxImageConfig = {
   ghcrOwner: (process.env.AIRLOCK_GHCR_OWNER?.trim() ?? 'lukeholmes').toLowerCase(),
 };
 
-let dockerClient: Dockerode | undefined;
-
 function getDocker(): Dockerode {
-  if (!dockerClient) {
-    dockerClient = new Dockerode();
-  }
-  return dockerClient;
+  return getSharedDockerClient();
 }
 
 export function configureSandboxImage(overrides: Partial<SandboxImageConfig>): void {

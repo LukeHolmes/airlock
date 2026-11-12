@@ -37,6 +37,32 @@ export {
 } from './containerRuntime.js';
 
 export {
+  getSharedDockerClient,
+  getActiveEngineConnection,
+  setActiveEngineConnection,
+  createDockerClient,
+  type DockerEngineConnection,
+} from './engineClient.js';
+
+export {
+  classifyEngineKind,
+  detectFirstReachableEngine,
+  listEngineConnectionCandidates,
+  type ContainerEngineKind,
+  type EngineProbeResult,
+} from './engineDetect.js';
+
+export { probeEngineHardening, type EngineHardeningProbe } from './engineHardening.js';
+
+export {
+  clearEngineRuntimeCache,
+  engineRuntimeAllowsSessions,
+  getCachedEngineRuntimeStatus,
+  refreshEngineRuntime,
+  type EngineRuntimeStatus,
+} from './engineRuntime.js';
+
+export {
   isProcessAlive,
   isReclaimableManagedContainer,
   isManagedAirlockLabels,

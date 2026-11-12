@@ -9,8 +9,6 @@
  */
 
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, session, shell } from 'electron';
-import Dockerode from 'dockerode';
-import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -42,6 +40,7 @@ import {
   SandboxSetupError,
 } from '@airlock/core';
 import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
+import { pickOpenTargetFromArgv } from './openHandoff.js';
 import { resolveSetupGuidePath } from './docsPath.js';
 import { getReadiness, refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
@@ -76,13 +75,8 @@ const __dirname = path.dirname(__filename);
 
 const VERSION = '0.4.1';
 
-let engineClient: Dockerode | undefined;
-
-function getEngineClient(): Dockerode {
-  if (!engineClient) {
-    engineClient = new Dockerode();
-  }
-  return engineClient;
+function getEngineClient() {
+  return docker.getSharedDockerClient();
 }
 
 function parseSessionPort(session: AirlockSession): number | undefined {
@@ -113,28 +107,11 @@ function logSessionEvent(
   });
 }
 
-function pickOpenablePath(argv: string[]): string | undefined {
-  const ignoredSuffixes = ['electron', 'airlock', 'Airlock'];
-
-  return [...argv].reverse().find((arg) => {
-    if (!arg || arg.startsWith('-') || arg === '.') {
-      return false;
-    }
-    if (arg.includes('node_modules/electron') || arg.includes('/.pnpm/')) {
-      return false;
-    }
-    if (ignoredSuffixes.some((suffix) => arg.endsWith(suffix))) {
-      return false;
-    }
-    if (arg.startsWith('http://') || arg.startsWith('https://')) {
-      return false;
-    }
-    return existsSync(arg);
-  });
-}
+let pendingOpenTarget: string | undefined;
 
 async function deliverOpenFileToRenderer(filePath: string): Promise<void> {
   if (!mainWindow) {
+    pendingOpenTarget = filePath;
     return;
   }
 
@@ -829,9 +806,19 @@ app.whenReady().then(async () => {
   mainWindow = createMainWindow();
   void ensureReadinessNotice();
 
-  const cliFile = pickOpenablePath(process.argv);
+  if (pendingOpenTarget) {
+    const target = pendingOpenTarget;
+    pendingOpenTarget = undefined;
+    void deliverOpenFileToRenderer(target);
+  }
+
+  const cliFile = pickOpenTargetFromArgv(process.argv);
   if (cliFile) {
     void deliverOpenFileToRenderer(cliFile);
+  }
+
+  if (app.isPackaged) {
+    app.setAsDefaultProtocolClient('airlock');
   }
 
   app.on('activate', () => {
@@ -882,13 +869,15 @@ app.on('certificate-error', (event, _webContents, url, _error, _certificate, cal
 
 app.on('open-file', (event, filePath) => {
   event.preventDefault();
-  if (mainWindow) {
-    mainWindow.webContents.send('airlock:open-file', filePath);
-  }
+  void deliverOpenFileToRenderer(filePath);
 });
 
-app.on('open-url', (event, _url) => {
+app.on('open-url', (event, url) => {
   event.preventDefault();
+  const target = pickOpenTargetFromArgv([url]);
+  if (target) {
+    void deliverOpenFileToRenderer(target);
+  }
 });
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -901,7 +890,7 @@ if (!gotTheLock) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
 
-      const fileOrUrl = pickOpenablePath(argv);
+      const fileOrUrl = pickOpenTargetFromArgv(argv);
       if (fileOrUrl) {
         void deliverOpenFileToRenderer(fileOrUrl);
       }

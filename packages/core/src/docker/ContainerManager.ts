@@ -19,6 +19,7 @@ import path from 'node:path';
 import http from 'node:http';
 
 import Dockerode from 'dockerode';
+import { getSharedDockerClient } from './engineClient.js';
 import { log } from '../debug/logger.js';
 import {
   MANAGED_LABEL,
@@ -32,16 +33,10 @@ import {
 import { ensureIsolatedNetwork } from './network.js';
 import { buildAirlockHostConfig } from './containerHostConfig.js';
 
-// Lazily loaded dockerode to avoid side effects at module load time
-let dockerClient: Dockerode | undefined;
-
 const VNC_CONTAINER_PORT = '6901/tcp';
 
 function getDocker(): Dockerode {
-  if (!dockerClient) {
-    dockerClient = new Dockerode();
-  }
-  return dockerClient;
+  return getSharedDockerClient();
 }
 
 async function ensureImageExists(docker: Dockerode, image: string): Promise<void> {

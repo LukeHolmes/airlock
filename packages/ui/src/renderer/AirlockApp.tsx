@@ -225,6 +225,20 @@ export default function AirlockApp() {
         return;
       }
 
+      if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+        if (!networkEnabled) {
+          setError('Network access must be enabled for URL sessions');
+          return;
+        }
+        const input: AirlockInput = {
+          type: 'url',
+          url: filePath,
+          networkMode: 'enabled',
+        };
+        await startSession(input);
+        return;
+      }
+
       const validation = await ipc.validateDrop(filePath);
       if (!validation.ok) {
         setError(validation.message);

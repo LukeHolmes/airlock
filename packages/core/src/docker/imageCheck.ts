@@ -1,4 +1,4 @@
-import Dockerode from 'dockerode';
+import { getSharedDockerClient } from './engineClient.js';
 
 /** Local alias used by ContainerManager after provisioning. */
 export const LOCAL_SANDBOX_IMAGE = 'airlock/sandbox:latest';
@@ -6,13 +6,8 @@ export const LOCAL_SANDBOX_IMAGE = 'airlock/sandbox:latest';
 /** @deprecated Use LOCAL_SANDBOX_IMAGE — kept for backward compatibility. */
 export const SANDBOX_IMAGE = LOCAL_SANDBOX_IMAGE;
 
-let dockerClient: Dockerode | undefined;
-
-function getDocker(): Dockerode {
-  if (!dockerClient) {
-    dockerClient = new Dockerode();
-  }
-  return dockerClient;
+function getDocker() {
+  return getSharedDockerClient();
 }
 
 export async function isSandboxImageAvailable(image: string = SANDBOX_IMAGE): Promise<boolean> {

@@ -163,6 +163,14 @@ export type RemoveAirlockDataOutcome =
 
 export type AirlockReadiness = {
   docker: { available: boolean };
+  containerEngine: {
+    connected: boolean;
+    kind: string;
+    displayName: string;
+    endpoint: string;
+    hardeningSupported: boolean;
+    hardeningRefusalReason?: string;
+  };
   sandboxImage: { available: boolean; image: string };
   canStartSession: boolean;
   setupRequired: boolean;

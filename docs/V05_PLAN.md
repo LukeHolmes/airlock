@@ -72,14 +72,14 @@
 
 | | |
 |---|---|
-| **Scope** | Abstract **container runtime** (auto-detect Docker, Podman, OrbStack, Rancher Desktop, Colima/Lima); **“Open in Airlock”** context menu + `airlock://` handler; **SignPath Foundation** application for free OSS **Windows** signing. |
-| **Definition of done** | Linux Docker path unchanged; second runtime passes smoke on one alternate engine; handlers documented; SignPath **submitted** (approval **outside our control**). |
-| **Effort** | **XL** (~4–6 weeks, calendar-dependent on SignPath / Apple) |
+| **Scope** | Abstract **container runtime** (auto-detect Docker, Podman, OrbStack, Rancher Desktop, Colima/Lima) with **refuse-if-hardening-unsupported**; **“Open in Airlock”** context menu + `airlock://` handler with **single-instance handoff**. |
+| **Definition of done** | Linux Docker path unchanged; alternate engine smoke on one non-Docker socket; handlers documented; Windows/macOS installers remain **unsigned** until a future signing/notarisation milestone. |
+| **Effort** | **L** (~3–4 weeks) |
 
 **Paid / approval notes**
 
-- **macOS notarisation** needs **$99/yr Apple Developer** — requires Luke’s explicit OK.
-- **SignPath** acceptance not guaranteed; unsigned macOS/Windows remain fallback.
+- **macOS notarisation** needs **$99/yr Apple Developer** — requires Luke’s explicit OK (deferred).
+- **Windows code signing** deferred; unsigned installers are expected for v0.5 tags.
 
 ---
 
@@ -177,7 +177,7 @@
 1. M0 + M1 + M2 in `main` with CI and published multi-arch smoke green.
 2. M3 receipt format stable; verify command documented.
 3. M4 export path for at least PDF inputs.
-4. M5 runtime abstraction **or** handlers shipped (SignPath may trail tag).
+4. M5 runtime abstraction **or** handlers shipped.
 5. M6 kit + release notes; no “safe” language in UI copy audit.
 
 ---

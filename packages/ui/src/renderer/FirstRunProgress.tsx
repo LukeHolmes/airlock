@@ -51,19 +51,29 @@ export default function FirstRunProgress({
   onOpenDockerDownload,
   onOpenSetupGuide,
 }: FirstRunProgressProps) {
+  const engine = readiness?.containerEngine;
+  const hardeningBlocked =
+    readiness !== null && engine?.connected === true && engine.hardeningSupported === false;
   const dockerMissing = readiness !== null && !readiness.docker.available;
-  const headline = dockerMissing
-    ? 'Docker is required'
-    : status === 'failed'
-      ? 'Sandbox setup failed'
-      : status === 'complete'
-        ? 'Sandbox ready'
-        : 'Preparing your sandbox';
+  const headline = hardeningBlocked
+    ? `${engine?.displayName ?? 'Container engine'} cannot run hardened sessions`
+    : dockerMissing
+      ? 'Container engine required'
+      : status === 'failed'
+        ? 'Sandbox setup failed'
+        : status === 'complete'
+          ? 'Sandbox ready'
+          : 'Preparing your sandbox';
 
-  const subline = dockerMissing
-    ? 'Install Docker Desktop, start it, and click Retry when Docker is running.'
-    : (progress?.message ??
-      'One-time download or build (~1–2 GB). Keep Docker running until setup finishes.');
+  const subline = hardeningBlocked
+    ? (engine?.hardeningRefusalReason ??
+      'This engine rejected Airlock hardened container settings. Use Docker Desktop, Podman, OrbStack, or Colima with full security options.')
+    : dockerMissing
+      ? engine?.connected
+        ? 'No supported container engine API detected. Install Docker Desktop, Podman, OrbStack, or Colima and click Retry.'
+        : 'Install a container engine, start it, and click Retry when the API is reachable.'
+      : (progress?.message ??
+        'One-time download or build (~1–2 GB). Keep Docker running until setup finishes.');
 
   return (
     <div
