@@ -108,6 +108,7 @@ docker run --rm --user 0:0 --entrypoint img2pdf \
 
 echo "Flatten: one-page.pdf (pixel rebuild)"
 docker run --rm \
+  --user 0:0 \
   --network none \
   --cap-drop ALL \
   --entrypoint /usr/local/bin/airlock-flatten-pdf \
