@@ -111,9 +111,10 @@ docker run --rm \
   --user 0:0 \
   --network none \
   --cap-drop ALL \
+  --entrypoint sh \
   -v "$FIXTURE_DIR/one-page.pdf:/input/target.pdf:ro" \
   "$IMAGE" \
-  sh -c '/usr/local/bin/airlock-flatten-pdf /input/target.pdf /tmp/flattened-one-page.pdf && cat /tmp/flattened-one-page.pdf' \
+  -c '/usr/local/bin/airlock-flatten-pdf /input/target.pdf /tmp/flattened-one-page.pdf && cat /tmp/flattened-one-page.pdf' \
   >"$FIXTURE_DIR/flattened-one-page.pdf"
 
 if grep -qi javascript "$FIXTURE_DIR/flattened-one-page.pdf"; then
