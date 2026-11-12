@@ -1,11 +1,11 @@
 /** Static nutrition-label triage — document schema v1. */
-export const TRIAGE_SCHEMA_VERSION = 1 as const;
+export const TRIAGE_SCHEMA_VERSION = 1;
 
 export type TriageRiskLevel = 'none' | 'low' | 'medium' | 'high';
 
 /** Exact copy when no rule-based indicators fire (v0.5 UI contract). */
 export const TRIAGE_NO_INDICATORS_MESSAGE =
-  'No known risk indicators found (static checks)' as const;
+  'No known risk indicators found (static checks)';
 
 export type TriageYaraHit = {
   rule: string;
@@ -31,7 +31,7 @@ export type TriageOfficeFinding = {
 };
 
 export type StaticTriageReport = {
-  schemaVersion: typeof TRIAGE_SCHEMA_VERSION;
+  schemaVersion: 1;
   completedAt: string;
   durationMs: number;
   input: {
