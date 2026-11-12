@@ -5,7 +5,7 @@ import {
   parseSandboxSetupFailure,
   shouldAppendProgressDetail,
   type SandboxSetupFailure,
-} from '@airlock/core/first-run';
+} from '@airlock/core/browser';
 
 import type { AirlockIpcApi, AirlockReadiness, SandboxSetupProgress } from '../shared/ipc.js';
 import type { FirstRunFailure, FirstRunStage } from './FirstRunProgress.js';

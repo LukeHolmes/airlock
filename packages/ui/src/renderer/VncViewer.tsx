@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { isAllowedVncEmbedUrl } from '@airlock/core';
+import { isAllowedVncEmbedUrl } from '@airlock/core/browser';
 
 interface VncViewerProps {
   vncUrl?: string;
