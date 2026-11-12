@@ -87,8 +87,8 @@
 
 | | |
 |---|---|
-| **Scope** | Kit: EICAR string, benign macro doc, QR phishing sample, white-text PDF, extension spoof; **demo GIF**; **v0.5 release notes**; update clean-machine checklist. |
-| **Definition of done** | Kit runs in CI (non-destructive); GIF captured on real GPU host; tagged release with GHCR sandbox + installers. |
+| **Scope** | In-repo **M6 trick-file kit** (`fixtures/m6-trick-kit/`, generator + manifest, CI assertions); documented **demo GIF capture** for Luke on a real host (not shipped by agents). |
+| **Definition of done** | Kit runs in CI via `sandbox-triage-ci.sh` + `assert-m6-trick-kit.py`; `docs/M6_TRICK_KIT.md` maps fixtures to signals; GIF checklist in `docs/M6_DEMO_GIF_CAPTURE.md`. |
 | **Effort** | **S** (~1 week) |
 
 ---

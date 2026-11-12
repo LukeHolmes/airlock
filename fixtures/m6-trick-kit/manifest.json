@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "description": "Harmless M6 trick files — one primary detection each; regenerate with scripts/generate-m6-trick-kit.py",
+  "fixtures": [
+    {
+      "file": "01-benign-minimal.pdf",
+      "detection": "Control (minimal PDF)",
+      "expect": {
+        "yara_rules_exclude": ["airlock_eicar_test_string"]
+      }
+    },
+    {
+      "file": "02-eicar.txt",
+      "detection": "EICAR test string (YARA)",
+      "expect": { "yara_rules_any": ["airlock_eicar_test_string"] }
+    },
+    {
+      "file": "03-pdf-javascript-openaction.pdf",
+      "detection": "PDF /JavaScript or /OpenAction",
+      "expect": {
+        "yara_rules_any_match": ["javascript", "open_action"],
+        "pdf_javascript_or_open_action": true
+      }
+    },
+    {
+      "file": "04-invisible-unicode.txt",
+      "detection": "Invisible / zero-width Unicode",
+      "expect": { "xray_invisible_unicode": true }
+    },
+    {
+      "file": "05-href-mismatch.html",
+      "detection": "Href vs display text mismatch",
+      "expect": { "xray_url_flags_any": ["href_display_mismatch"] }
+    },
+    {
+      "file": "06-qr-shortener.png",
+      "detection": "QR URL shortener flag",
+      "expect": { "xray_qr_codes_min": 1, "xray_url_flags_any": ["url_shortener"] }
+    },
+    {
+      "file": "07-qr-ip-literal.png",
+      "detection": "QR with IP-literal URL",
+      "expect": { "xray_qr_codes_min": 1, "xray_url_flags_any": ["ip_literal"] }
+    },
+    {
+      "file": "08-qr-punycode.png",
+      "detection": "QR with punycode / IDN hostname",
+      "expect": { "xray_qr_codes_min": 1, "xray_url_flags_any": ["punycode"] }
+    },
+    {
+      "file": "09-macro-harmless.docm",
+      "detection": "Macro / AutoOpen indicators",
+      "expect": {
+        "office_macros_or_auto_exec_or_yara_macro": true
+      }
+    },
+    {
+      "file": "10-white-text.pdf",
+      "detection": "Hidden PDF text (white-on-white heuristic)",
+      "expect": { "xray_hidden_kinds_any": ["white_on_white"] }
+    },
+    {
+      "file": "11-extension-spoof.pdf-as-txt.txt",
+      "detection": "Magic bytes vs extension mismatch",
+      "expect": { "magic_matches_extension": false }
+    },
+    {
+      "file": "12-polyglot-pdf-pe.txt",
+      "detection": "Embedded PE marker (MZ)",
+      "expect": { "yara_rules_any": ["airlock_embedded_pe"] }
+    },
+    {
+      "file": "13-exif-metadata.jpg",
+      "detection": "Image metadata (EXIF/XMP when exiftool present; XMP URL stubs offline)",
+      "expect": {
+        "detected_mime_prefix": "image/",
+        "jpeg_xmp_metadata_urls": true
+      }
+    },
+    {
+      "file": "14-office-hidden.docx",
+      "detection": "Office hidden text (vanish / white)",
+      "expect": { "xray_hidden_kinds_any": ["vanish", "white_on_white", "tiny_font"] }
+    }
+  ]
+}
