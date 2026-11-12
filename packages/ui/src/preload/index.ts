@@ -16,6 +16,9 @@ import {
   type SandboxSetupProgress,
   type SessionAnalysisResult,
   type SessionExportResult,
+  type ReceiptVerifyResult,
+  type ReceiptExportPublicKeyResult,
+  type ReceiptKeyStatus,
   type SessionTriageSnapshot,
   type SessionStartedEvent,
   type SessionEndedEvent,
@@ -36,6 +39,18 @@ async function analyzeSession(sessionId: string): Promise<SessionAnalysisResult>
 
 async function exportSession(sessionId: string): Promise<SessionExportResult> {
   return ipcRenderer.invoke(IPC_CHANNELS.SESSION_EXPORT, sessionId);
+}
+
+async function verifyReceipt(): Promise<ReceiptVerifyResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.RECEIPT_VERIFY);
+}
+
+async function exportReceiptPublicKey(): Promise<ReceiptExportPublicKeyResult> {
+  return ipcRenderer.invoke(IPC_CHANNELS.RECEIPT_EXPORT_PUBLIC_KEY);
+}
+
+async function getReceiptKeyStatus(): Promise<ReceiptKeyStatus> {
+  return ipcRenderer.invoke(IPC_CHANNELS.RECEIPT_KEY_STATUS);
 }
 
 async function getSessionTriage(sessionId: string): Promise<SessionTriageSnapshot> {
@@ -125,6 +140,9 @@ const airlockApi: AirlockIpcApi = {
   destroySession,
   analyzeSession,
   exportSession,
+  verifyReceipt,
+  exportReceiptPublicKey,
+  getReceiptKeyStatus,
   getSessionTriage,
   onSessionStarted,
   onSessionEnded,

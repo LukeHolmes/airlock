@@ -117,10 +117,18 @@ export function buildStaticTriageReport(
 
   const statusMessage = deriveTriageStatusMessage(riskLevel, indicators);
 
+  const inspectionToolchain = raw.toolchain?.yara_rules_sha256
+    ? {
+        yaraRulesSha256: raw.toolchain.yara_rules_sha256,
+        tools: { ...(raw.toolchain.tools ?? {}) },
+      }
+    : undefined;
+
   return {
     schemaVersion: TRIAGE_SCHEMA_VERSION,
     completedAt,
     durationMs,
+    ...(inspectionToolchain ? { inspectionToolchain } : {}),
     input: {
       fileName: raw.fileName,
       sizeBytes: raw.sizeBytes,

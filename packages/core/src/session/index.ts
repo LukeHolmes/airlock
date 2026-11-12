@@ -18,3 +18,7 @@ export {
   type SessionExportFileFingerprint,
 } from './sessionExport.js';
 export { prepareSessionExport, type PreparedSessionExport } from './prepareSessionExport.js';
+export {
+  prepareInspectionReceipt,
+  type PreparedInspectionReceipt,
+} from '../receipt/prepareInspectionReceipt.js';

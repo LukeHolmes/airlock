@@ -10,7 +10,7 @@
 
 import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell } from 'electron';
 import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,7 +20,10 @@ import {
   destroyAirlockSession,
   analyzeSession,
   getSessionTriage,
-  prepareSessionExport,
+  prepareInspectionReceipt,
+  renderInspectionReceiptPdf,
+  verifyReceiptJson,
+  exportPublicKeyDocument,
   validateDrop,
   configureSandboxImage,
   ensureSandboxImageReady,
@@ -31,6 +34,7 @@ import { DOCKER_DOWNLOAD_URL } from './dockerCheck.js';
 import { resolveSetupGuidePath } from './docsPath.js';
 import { getReadiness, refreshReadiness } from './readiness.js';
 import { getSandboxBuildContextPath } from './sandboxContext.js';
+import { loadOrCreateElectronReceiptKey } from './receiptKeyStore.js';
 import {
   IPC_CHANNELS,
   type AirlockInput,
@@ -42,6 +46,9 @@ import {
   type SessionAnalysisResult,
   type SessionTriageSnapshot,
   type SessionExportResult,
+  type ReceiptVerifyResult,
+  type ReceiptExportPublicKeyResult,
+  type ReceiptKeyStatus,
   type SessionStartedEvent,
   type SessionEndedEvent,
   type SessionErrorEvent,
@@ -416,14 +423,20 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.SESSION_EXPORT,
     async (event, sessionId: string): Promise<SessionExportResult> => {
-      console.log(`[ipc] exportSession ${sessionId.slice(0, 12)}`);
+      console.log(`[ipc] exportSignedReceipt ${sessionId.slice(0, 12)}`);
       try {
-        const prepared = await prepareSessionExport(sessionId, VERSION);
+        const { material: key } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
+        const prepared = await prepareInspectionReceipt(sessionId, {
+          appVersion: VERSION,
+          privateKeyPkcs8: key.privateKeyPkcs8,
+          publicKeySpki: key.publicKeySpki,
+          keyProtectionLevel: key.protectionLevel,
+        });
         const parent = BrowserWindow.fromWebContents(event.sender);
         const saveOptions = {
-          title: 'Export session',
-          defaultPath: prepared.suggestedFileName,
-          filters: [{ name: 'JSON', extensions: ['json'] as string[] }],
+          title: 'Export signed inspection receipt',
+          defaultPath: `${prepared.suggestedBaseName}.json`,
+          filters: [{ name: 'Airlock receipt (JSON)', extensions: ['json'] as string[] }],
         };
         const { canceled, filePath } = parent
           ? await dialog.showSaveDialog(parent, saveOptions)
@@ -434,10 +447,83 @@ function registerIpcHandlers(): void {
         }
 
         await writeFile(filePath, prepared.json, 'utf8');
-        return { ok: true, filePath };
+        const pdfPath = filePath.replace(/\.json$/i, '.pdf');
+        await writeFile(pdfPath, renderInspectionReceiptPdf(prepared.receipt));
+        return { ok: true, filePath, pdfPath };
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(`[ipc] exportSession failed: ${message}`);
+        console.error(`[ipc] exportSignedReceipt failed: ${message}`);
+        return { ok: false, canceled: false, error: message };
+      }
+    },
+  );
+
+  ipcMain.handle(IPC_CHANNELS.RECEIPT_VERIFY, async (event): Promise<ReceiptVerifyResult> => {
+    const parent = BrowserWindow.fromWebContents(event.sender);
+    const pick = parent
+      ? await dialog.showOpenDialog(parent, {
+          title: 'Verify inspection receipt',
+          filters: [{ name: 'Airlock receipt', extensions: ['json'] }],
+          properties: ['openFile'],
+        })
+      : await dialog.showOpenDialog({
+          title: 'Verify inspection receipt',
+          filters: [{ name: 'Airlock receipt', extensions: ['json'] }],
+          properties: ['openFile'],
+        });
+
+    if (pick.canceled || !pick.filePaths[0]) {
+      return { ok: false, canceled: true };
+    }
+
+    try {
+      const jsonText = await readFile(pick.filePaths[0], 'utf8');
+      const result = verifyReceiptJson(jsonText);
+      if (!result.ok) {
+        return { ok: false, canceled: false, error: result.reason };
+      }
+      return {
+        ok: true,
+        fingerprint: result.fingerprint,
+        riskLevel: result.payload.riskLevel,
+        fileName:
+          result.payload.input?.fileName ??
+          result.payload.urlInspection?.urlAsEntered ??
+          'inspection',
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return { ok: false, canceled: false, error: message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.RECEIPT_KEY_STATUS, async (): Promise<ReceiptKeyStatus> => {
+    const { status } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
+    return status;
+  });
+
+  ipcMain.handle(
+    IPC_CHANNELS.RECEIPT_EXPORT_PUBLIC_KEY,
+    async (event): Promise<ReceiptExportPublicKeyResult> => {
+      try {
+        const { material: key } = loadOrCreateElectronReceiptKey(app.getPath('userData'));
+        const doc = exportPublicKeyDocument(key);
+        const parent = BrowserWindow.fromWebContents(event.sender);
+        const saveOptions = {
+          title: 'Export receipt public key',
+          defaultPath: 'airlock-receipt-public.json',
+          filters: [{ name: 'JSON', extensions: ['json'] }],
+        };
+        const { canceled, filePath } = parent
+          ? await dialog.showSaveDialog(parent, saveOptions)
+          : await dialog.showSaveDialog(saveOptions);
+        if (canceled || !filePath) {
+          return { ok: false, canceled: true };
+        }
+        await writeFile(filePath, `${JSON.stringify(doc, null, 2)}\n`, 'utf8');
+        return { ok: true, filePath, fingerprint: doc.fingerprint };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         return { ok: false, canceled: false, error: message };
       }
     },

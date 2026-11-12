@@ -15,10 +15,27 @@ export {
   getSessionArtefacts,
   analyzeSession,
   prepareSessionExport,
+  prepareInspectionReceipt,
   serializeSessionExport,
   formatSessionExportJson,
   SESSION_EXPORT_SCHEMA_VERSION,
 } from './session/index.js';
+
+export {
+  verifyReceiptJson,
+  verifySignedInspectionReceipt,
+  RECEIPT_INTEGRITY_NOTICE,
+  exportPublicKeyPem,
+  exportPublicKeyDocument,
+  renderInspectionReceiptPdf,
+  PLAINTEXT_KEY_WARNING,
+  loadOrCreateReceiptKey,
+  type KeyProtector,
+  type ReceiptKeyProtectionLevel,
+  type ReceiptSigningKeyMaterial,
+  type SignedInspectionReceipt,
+  type VerifyReceiptResult,
+} from './receipt/index.js';
 
 export {
   LOCAL_SANDBOX_IMAGE,

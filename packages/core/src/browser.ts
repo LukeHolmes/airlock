@@ -27,3 +27,5 @@ export {
 } from './triage/types.js';
 
 export type { TriageSessionState } from './triage/triageStore.js';
+
+export { RECEIPT_INTEGRITY_NOTICE } from './receipt/types.js';
