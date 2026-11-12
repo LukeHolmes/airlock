@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import VncViewer from './VncViewer';
 import NutritionLabelPanel from './NutritionLabelPanel';
-import type { TriageSessionState } from '@airlock/core/browser';
+import { RECEIPT_INTEGRITY_NOTICE, type TriageSessionState } from '@airlock/core/browser';
 import FirstRunProgress from './FirstRunProgress';
 import { useFirstRunSetup } from './useFirstRunSetup';
 import type {
@@ -55,6 +55,7 @@ export default function AirlockApp() {
   const [urlInput, setUrlInput] = useState('');
   const [analysisResult, setAnalysisResult] = useState<SessionAnalysisResult | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
+  const [receiptVerifyMessage, setReceiptVerifyMessage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [readiness, setReadiness] = useState<AirlockReadiness | null>(null);
   const [triageState, setTriageState] = useState<TriageSessionState>({ status: 'pending' });
@@ -391,7 +392,7 @@ export default function AirlockApp() {
     try {
       const result = await ipc.exportSession(analysisResult.sessionId);
       if (result.ok) {
-        setExportMessage(`Saved to ${result.filePath}`);
+        setExportMessage(`Receipt saved to ${result.filePath} (PDF: ${result.pdfPath})`);
       } else if (!result.canceled) {
         setError(result.error);
       }
@@ -402,6 +403,37 @@ export default function AirlockApp() {
       setIsExporting(false);
     }
   }, [analysisResult]);
+
+  const handleVerifyReceipt = useCallback(async () => {
+    if (!ipc) return;
+    setReceiptVerifyMessage(null);
+    try {
+      const result = await ipc.verifyReceipt();
+      if (result.ok) {
+        setReceiptVerifyMessage(
+          `Signature valid for ${result.fileName} (static risk: ${result.riskLevel}). Key ${result.fingerprint.slice(0, 20)}…`,
+        );
+      } else if (!result.canceled) {
+        setError(result.error);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
+
+  const handleExportReceiptPublicKey = useCallback(async () => {
+    if (!ipc) return;
+    try {
+      const result = await ipc.exportReceiptPublicKey();
+      if (result.ok) {
+        setReceiptVerifyMessage(`Public key exported to ${result.filePath}`);
+      } else if (!result.canceled) {
+        setError(result.error);
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, []);
 
   const handleDragOver = useCallback(
     (e: React.DragEvent) => {
@@ -466,6 +498,24 @@ export default function AirlockApp() {
               </button>
             </div>
           )}
+          {ipc && (
+            <div className="flex items-center gap-2 no-drag">
+              <button
+                type="button"
+                onClick={() => void handleVerifyReceipt()}
+                className="px-2.5 py-1 rounded-[4px] text-[11px] font-mono border border-[#23272F] text-[#AAB3BE] hover:border-[#3DE8D4]/40"
+              >
+                Verify receipt
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportReceiptPublicKey()}
+                className="px-2.5 py-1 rounded-[4px] text-[11px] font-mono border border-[#23272F] text-[#AAB3BE] hover:border-[#3DE8D4]/40"
+              >
+                Export public key
+              </button>
+            </div>
+          )}
           {!ipc && (
             <div className="flex items-center gap-2 bg-[#F23D3D]/10 border border-[#F23D3D]/20 px-2.5 py-1 rounded-[4px]">
               <span className="font-mono text-[11px] font-medium tracking-widest text-[#F23D3D] uppercase">
@@ -475,6 +525,12 @@ export default function AirlockApp() {
           )}
         </div>
       </header>
+
+      {receiptVerifyMessage && (
+        <p className="px-4 py-2 text-[12px] font-mono text-[#3DE8D4] border-b border-[#23272F] bg-[#0C0E11]/60">
+          {receiptVerifyMessage}
+        </p>
+      )}
 
       {firstRun.visible && (
         <FirstRunProgress
@@ -553,6 +609,10 @@ export default function AirlockApp() {
               {analysisResult.analysis.recommendation}
             </p>
 
+            <p className="text-[11px] text-[#7E8B9A] mb-3 leading-relaxed border border-[#23272F] rounded-[4px] p-2">
+              {RECEIPT_INTEGRITY_NOTICE}
+            </p>
+
             {exportMessage && (
               <p className="text-[12px] text-[#3DE8D4] font-mono mb-3 break-all">{exportMessage}</p>
             )}
@@ -564,7 +624,7 @@ export default function AirlockApp() {
                 disabled={isExporting}
                 className="px-3 py-1.5 bg-[#3DE8D4] text-[#04201D] rounded-[4px] text-[12px] font-medium disabled:opacity-50"
               >
-                {isExporting ? 'Exporting…' : 'Export session'}
+                {isExporting ? 'Exporting…' : 'Export signed receipt'}
               </button>
               <button
                 type="button"

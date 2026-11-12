@@ -92,6 +92,8 @@ export interface ContainerSession {
   name: string;
   createdAt: Date;
   config: AirlockContainerConfig;
+  sandboxImageRef: string;
+  sandboxImageDigest: string;
   /** Base VNC URL on the host, e.g. http://127.0.0.1:32784 */
   vncUrl?: string;
   /** Full KasmVNC client page URL */
@@ -363,6 +365,13 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
 
   await ensureImageExists(docker, config.image);
 
+  const imageInspect = await docker.getImage(config.image).inspect();
+  const sandboxImageDigest =
+    imageInspect.RepoDigests?.[0] ??
+    (typeof imageInspect.Id === 'string' && imageInspect.Id.startsWith('sha256:')
+      ? imageInspect.Id
+      : `sha256:${imageInspect.Id}`);
+
   const envArray = Object.entries(config.env ?? {}).map(([key, value]) => `${key}=${value}`);
 
   if (config.debug) {
@@ -444,6 +453,8 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     name: config.name,
     createdAt: new Date(),
     config,
+    sandboxImageRef: config.image,
+    sandboxImageDigest,
     vncUrl: initialUrls.vncUrl,
     vncPageUrl: initialUrls.vncPageUrl,
   });
@@ -476,6 +487,8 @@ export async function createContainer(config: AirlockContainerConfig): Promise<C
     name: config.name,
     createdAt: new Date(),
     config,
+    sandboxImageRef: config.image,
+    sandboxImageDigest,
     vncUrl,
     vncPageUrl,
   };

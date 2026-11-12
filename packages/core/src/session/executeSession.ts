@@ -138,6 +138,8 @@ export async function executeAirlockSession(input: AirlockInput): Promise<Airloc
       sessionId,
       containerId: container.id,
       networkMode,
+      sandboxImageRef: container.sandboxImageRef,
+      sandboxImageDigest: container.sandboxImageDigest,
     });
 
     const session: AirlockSession = {

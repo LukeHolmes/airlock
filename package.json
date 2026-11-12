@@ -23,7 +23,8 @@
     "format": "prettier --write 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
     "format:check": "prettier --check 'packages/core/src/**/*.ts' 'packages/ui/src/**/*.{ts,tsx}' --ignore-path .prettierignore",
     "ci:lint": "node scripts/check-renderer-core-imports.mjs && pnpm lint && pnpm format:check",
-    "ci:docker": "docker build -t airlock/sandbox:test ./packages/sandbox"
+    "ci:docker": "docker build -t airlock/sandbox:test ./packages/sandbox",
+    "verify-receipt": "pnpm --filter @airlock/core build && node scripts/verify-receipt.mjs"
   },
   "build": {
     "appId": "com.airlock.app",

@@ -57,10 +57,16 @@ export type TriageXrayFinding = {
   urls: TriageUrlFinding[];
 };
 
+export type TriageInspectionToolchain = {
+  yaraRulesSha256: string;
+  tools: Record<string, string>;
+};
+
 export type StaticTriageReport = {
   schemaVersion: typeof TRIAGE_SCHEMA_VERSION;
   completedAt: string;
   durationMs: number;
+  inspectionToolchain?: TriageInspectionToolchain;
   input: {
     fileName: string;
     sizeBytes: number;
@@ -113,6 +119,10 @@ export type TriageRawOutput = {
     vba_hits?: string[];
   };
   errors?: string[];
+  toolchain?: {
+    yara_rules_sha256?: string;
+    tools?: Record<string, string>;
+  };
   xray?: {
     hidden_text?: Array<{ kind: string; detail: string }>;
     invisible_unicode?: Array<{ codepoint: string; count: number }>;

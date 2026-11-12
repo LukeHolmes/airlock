@@ -12,6 +12,8 @@ export const IPC_CHANNELS = {
   SESSION_ANALYZE: 'airlock:session:analyze',
   SESSION_EXPORT: 'airlock:session:export',
   SESSION_GET_TRIAGE: 'airlock:session:get-triage',
+  RECEIPT_VERIFY: 'airlock:receipt:verify',
+  RECEIPT_EXPORT_PUBLIC_KEY: 'airlock:receipt:export-public-key',
 
   // Session events (main → renderer)
   SESSION_STARTED: 'airlock:session:started',
@@ -92,7 +94,22 @@ export type SessionAnalysisResult = {
 };
 
 export type SessionExportResult =
-  | { ok: true; filePath: string }
+  | { ok: true; filePath: string; pdfPath: string }
+  | { ok: false; canceled: true }
+  | { ok: false; canceled: false; error: string };
+
+export type ReceiptVerifyResult =
+  | {
+      ok: true;
+      fingerprint: string;
+      riskLevel: string;
+      fileName: string;
+    }
+  | { ok: false; canceled: true }
+  | { ok: false; canceled: false; error: string };
+
+export type ReceiptExportPublicKeyResult =
+  | { ok: true; filePath: string; fingerprint: string }
   | { ok: false; canceled: true }
   | { ok: false; canceled: false; error: string };
 
@@ -176,6 +193,8 @@ export interface AirlockIpcApi {
   destroySession(session: AirlockSession): Promise<AirlockSession>;
   analyzeSession(sessionId: string): Promise<SessionAnalysisResult>;
   exportSession(sessionId: string): Promise<SessionExportResult>;
+  verifyReceipt(): Promise<ReceiptVerifyResult>;
+  exportReceiptPublicKey(): Promise<ReceiptExportPublicKeyResult>;
   getSessionTriage(sessionId: string): Promise<SessionTriageSnapshot>;
 
   onSessionStarted(callback: (event: SessionStartedEvent) => void): () => void;
