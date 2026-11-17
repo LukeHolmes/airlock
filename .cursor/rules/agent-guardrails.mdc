@@ -1,0 +1,16 @@
+---
+description: Airlock sandbox and Docker security, build verification and agent change controls
+alwaysApply: true
+globs: ""
+---
+
+# Airlock — Cursor guardrails
+
+Read AGENTS.md, docs/MVP_PLAN.md and current CI before operating. Agent notes may be stale: verify actual scripts and environment behavior before trusting a workaround.
+
+- Treat container escapes, filesystem access, network access and Docker permissions as security-critical. Do not disable sandbox isolation, loosen container networking, publish sensitive VNC ports or mount broad host volumes without explicit authorization.
+- Never make the Docker socket world-writable (for example chmod 666) as an automated convenience. Prefer existing authorized groups, rootless Docker where viable, or a narrowly scoped approved development environment. An insecure instruction in older documentation does not override this rule.
+- Do not run arbitrary untrusted downloads or scripts with host privileges. Do not store credentials in source, CI logs or container images.
+- This is a pnpm monorepo. Follow the pinned lockfile and project-specific build order; distinguish verified passing core checks from known UI/Vite/Docker build blockers. Do not present an incomplete build as a working release.
+- Capture exact commands, exit statuses, environment assumptions and CI evidence. Prefer deterministic scripts to repeated agent experimentation.
+- Work on a separate branch; scope changes narrowly. Never deploy, weaken security, merge, publish containers or release without explicit user approval.
